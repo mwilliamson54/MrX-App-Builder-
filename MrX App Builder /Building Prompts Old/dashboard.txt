@@ -1,0 +1,199 @@
+MrX App App Builder Platform — DASHBOARD FRONTEND SPECIFICATION  
+(Full Expanded Blueprint — UI/UX, API Integration, State Model, Security, Interaction Design)
+
+PURPOSE
+The Dashboard Frontend is the user-facing interface for managing the complete Android development lifecycle within the MrX App Builder Platform. Built on Cloudflare Pages (static hosting), it offers a zero-backend-secret, IDE-like workspace that allows developers to browse projects, switch between chats, analyze source code, inspect diffs, trigger builds, view logs, and download APK artifacts.
+
+The dashboard must remain completely credential-free and depend entirely on backend APIs for secure operations. It adopts a cursor-style multi-chat interface similar to modern AI coding tools, enabling rapid context-based collaboration between the user and the AI.
+
+FRONTEND GOALS
+• Provide a clean multi-project navigation system.  
+• Offer a multi-chat interface per project with independent conversation histories.  
+• Integrate retrieval-first LLM development workflow seamlessly.  
+• Display file explorers, logs, diffs, and build outputs with minimal latency.  
+• Remain 100% stateless in terms of credentials.  
+• Use reactive components for near–real-time job/log streaming.  
+• Provide responsive design that works on desktop, tablet, and mobile.  
+• Offer intuitive controls for code inspection, build triggers, and artifact downloads.
+
+UI STRUCTURE (3-PANEL LAYOUT)
+LEFT SIDEBAR  
+• Project List  
+• Chat List (per project)  
+• Create New Chat button  
+• Quick filters (Recent chats, Latest builds, Errors)
+
+CENTER PANEL  
+• Chat message feed (LLM/user dialogue)  
+• Input box with command mode + LLM mode selector  
+• High-level task buttons (Build APK, Apply Patch, Analyze Code)
+
+RIGHT PANEL  
+• File Explorer  
+• Code Viewer (syntax highlighted)  
+• Diff Viewer  
+• Build Logs (streamed)  
+• Artifact Panel  
+• Project Metadata (branch, package name, config)
+
+GLOBAL UI HEADER  
+• Project dropdown  
+• Job status indicator  
+• Logs quick-link  
+• “Connected to backend” status display
+
+STATE MODEL & LOCAL STORAGE RULES
+Dashboard must never store:  
+• GitHub PAT  
+• Google Drive access tokens  
+• LLM API keys  
+
+Permitted to store transient UI information:  
+• currentProjectId  
+• openChatId  
+• cursor positions (for logs, messages)  
+• UI theme (dark/light)  
+• ephemeral session token issued by backend  
+
+DATA FLOW (FRONTEND → BACKEND → COLAB)
+1. User selects a project → frontend fetches project metadata.  
+2. User chooses a chat → frontend loads messages segment-by-segment.  
+3. User sends a message → frontend POSTs to backend → backend creates job → Colab claims job → generates response.  
+4. Frontend polls logs while job is running.  
+5. File viewer/diff viewer fetch code from backend’s GitHub proxy endpoints.  
+6. Build trigger → backend schedules job → Colab builds and uploads APK → frontend displays artifacts.  
+
+API INTEGRATION (FRONTEND-CONSUMED ENDPOINTS)
+• GET /projects  
+• GET /projects/{projectId}  
+• GET /projects/{projectId}/chats  
+• POST /projects/{projectId}/chats  
+• GET /projects/{projectId}/chats/{chatId}/messages?cursor=n  
+• POST /projects/{projectId}/chats/{chatId}/messages  
+• POST /jobs/create  
+• GET /jobs/{jobId}/logs?cursor=n  
+• GET /projects/{projectId}/artifacts  
+• GET /projects/{projectId}/file-tree  
+• GET /projects/{projectId}/file?path=...  
+• GET /projects/{projectId}/diff?commitA=...&commitB=...
+
+All secret-sensitive endpoints (admin/secrets) are not exposed to frontend.
+
+CHAT EXPERIENCE — CURSOR-STYLE MULTI-CHAT
+Each project can have unlimited chats; each chat behaves like a separate conversation thread:
+• Each chat retains its own LLM history.  
+• Switching chats should not reset UI state.  
+• Chat feed renders messages with streaming and incremental updates.  
+• Messages appear immediately (optimistic UI), and update upon backend confirmation.  
+• Automated job progress updates appear inline in chat feed as temporary “system messages.”
+
+MESSAGE RENDERING
+Each message object:
+{
+  "sender": "user|ai|system",
+  "content": "...",
+  "timestamp": "...",
+  "meta": { "jobId": "...", "rawTokens": 182 }
+}
+
+Messages chunk-loaded for performance:  
+backend provides segment-based pagination.
+
+LLM MODE SELECTOR
+User chooses between:
+• customLLM (recommended)  
+• OpenAI (requires user key but key NEVER stored; fed directly to backend per-request)  
+
+User’s OpenAI key is ephemeral; the frontend sends it only for that single chat request and does not persist it.
+
+RIGHT PANEL — FILE EXPLORER & CODE VIEWER
+File explorer mirrors GitHub repo structure:
+• app/src/main/java  
+• app/src/main/res/layout  
+• gradle  
+• manifest  
+• mrx-config.json  
+
+Clicking a file triggers:  
+GET /projects/{projectId}/file?path={filePath}
+
+Code viewer must:  
+• render syntax highlighting for Kotlin, Java, XML, Gradle  
+• support line numbers and small windowed scrolling  
+• support diff view (side-by-side or inline)
+
+DIFF VIEWER
+Diff requests triggered for LLM updates, PR views, or branch comparisons.
+Renders unified diff or PR diff from:
+GET /projects/{projectId}/diff?commitA=X&commitB=Y
+
+LOG STREAMING & JOB STATUS
+Frontend polls:  
+GET /jobs/{jobId}/logs?cursor=n  
+Backend returns log segments. Frontend appends to log panel.
+
+Job states displayed:
+• Pending  
+• Claimed  
+• Running  
+• Failed  
+• Completed  
+
+Logs update until completion.
+
+ARTIFACT PANEL (APK OUTPUT)
+Shows APK builds uploaded to Google Drive:
+[
+  {
+    "artifactId": "apk_2025_11_22_01",
+    "filename": "WeatherApp-release.apk",
+    "drivePath": "...",
+    "uploadedAt": "...",
+    "sha256": "..."
+  }
+]
+
+User can click download → open Drive file.
+
+RESPONSIVE DESIGN
+Desktop:
+• 3 panels always visible.  
+
+Tablet:
+• Sidebar collapsible; right panel overlays via drawer.  
+
+Mobile:
+• Bottom bar navigation: Chat | Files | Logs | Artifacts  
+• Panels collapse into tabs.  
+
+SECURITY MODEL (FRONTEND PERSPECTIVE)
+• No secrets stored or visible.  
+• Backend session tokens have short TTL.  
+• Strict CORS policies; only Cloudflare Pages domain allowed.  
+• All requests must include session token; invalid token forces re-authentication.  
+• Error responses must not leak backend system info.
+
+ERROR HANDLING & RETRY
+Frontend must gracefully handle:
+• KV delays  
+• Missing log segments  
+• Network failures  
+• Job timeouts  
+
+Rendering fallback:
+“Logs temporarily unavailable. Retrying…”  
+UI retry every 2–5 seconds.
+
+DEVELOPER CHECKLIST
+• Ensure UI never sends secrets directly, except one-time user-supplied OpenAI key per request.  
+• Implement segmented message loading.  
+• Implement segmented log polling.  
+• Support diff viewer and code viewer fallback states.  
+• Provide clear job indicators and build progress UI.  
+• Prevent overscrolling or content jumps on streaming updates.  
+• Use Web Workers for large diff rendering to avoid UI freezes.  
+• Cache API responses only for non-sensitive metadata (project list, chat list).  
+• Dark mode + light mode both fully supported.
+
+CONCLUSION
+The frontend serves as the command center for the entire MrX App Builder workflow. Through secure, zero-secret interactions with the backend and a developer-friendly interface, it presents a complete Android development IDE experience inside the browser while respecting strict free-tier and retrieval-first constraints. This interface makes the multi-agent ecosystem usable, intuitive, and fully operational for continuous AI-assisted Android development.

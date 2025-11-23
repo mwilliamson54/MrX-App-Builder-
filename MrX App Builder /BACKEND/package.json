@@ -1,0 +1,25 @@
+{
+  "name": "mrx-backend",
+  "version": "1.0.0",
+  "description": "MrX App Builder Platform - Cloudflare Pages Functions Backend",
+  "scripts": {
+    "dev": "wrangler pages dev dist --kv KV --compatibility-date=2025-11-22",
+    "build": "tsc",
+    "deploy": "wrangler pages deploy dist",
+    "deploy:production": "wrangler pages deploy dist --project-name=mrx-backend --branch=main",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "kv:create": "wrangler kv:namespace create KV",
+    "kv:create:preview": "wrangler kv:namespace create KV --preview",
+    "secret:put": "wrangler pages secret put"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0",
+    "wrangler": "^3.78.0"
+  }
+}

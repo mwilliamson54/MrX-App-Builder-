@@ -1,0 +1,30 @@
+# wrangler.toml
+name = "mrx-backend"
+compatibility_date = "2025-11-22"
+compatibility_flags = ["nodejs_compat"]
+
+pages_build_output_dir = "./dist"
+
+# KV Namespace binding
+[[kv_namespaces]]
+binding = "KV"
+id = "YOUR_KV_NAMESPACE_ID"  # Replace with your actual KV namespace ID
+preview_id = "YOUR_PREVIEW_KV_NAMESPACE_ID"  # For local development
+
+# Environment variables (non-secret)
+[env.production.vars]
+DASHBOARD_URL = "https://your-dashboard.pages.dev"
+
+# Secrets (set via wrangler secret put)
+# - SESSION_SECRET: JWT signing key
+# - ENCRYPTION_KEY: Secret encryption key (32 chars)
+# - GITHUB_PAT_MASTER: GitHub Personal Access Token
+# - ADMIN_API_KEY: Admin endpoint authentication
+
+# Development environment
+[env.development]
+vars = { DASHBOARD_URL = "http://localhost:3000" }
+
+[[env.development.kv_namespaces]]
+binding = "KV"
+id = "YOUR_DEV_KV_NAMESPACE_ID"

@@ -1,0 +1,28 @@
+# Cloudflare Pages Configuration for MrX App Builder
+
+name = "mrx-app-builder-dashboard"
+compatibility_date = "2024-01-01"
+
+# Pages configuration
+pages_build_output_dir = "dist"
+
+# Environment variables for Pages Functions
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.preview]
+vars = { ENVIRONMENT = "preview" }
+
+# KV Namespaces (for Pages Functions integration)
+[[kv_namespaces]]
+binding = "MRX_METADATA"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# Build configuration
+[build]
+command = "npm run build"
+cwd = "."
+
+[build.upload]
+format = "service-worker"
