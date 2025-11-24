@@ -17,12 +17,4 @@ vars = { ENVIRONMENT = "preview" }
 [[kv_namespaces]]
 binding = "MRX_METADATA"
 id = "87974f4fff0a4525a4663b0ad8852ca7"
-preview_id = "your-preview-kv-namespace-id"
-
-# Build configuration
-[build]
-command = "npm run build"
-cwd = "."
-
-[build.upload]
-format = "service-worker"
+preview_id = "87974f4fff0a4525a4663b0ad8852ca7"
