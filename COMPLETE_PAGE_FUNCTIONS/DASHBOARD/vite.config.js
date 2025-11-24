@@ -9,13 +9,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
+
+    // ⭐ Replaced "terser" with esbuild (built-in, no dependency needed)
+    minify: 'esbuild',
+
     rollupOptions: {
       output: {
         manualChunks: {
@@ -24,6 +21,7 @@ export default defineConfig({
         }
       }
     },
+
     chunkSizeWarningLimit: 1000
   },
 
@@ -33,8 +31,24 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8787', // Cloudflare Workers dev server
+        target: 'http://localhost:8787', 
         changeOrigin: true,
+        secure: false
+      }
+    }
+  },
+
+  // Preview server configuration
+  preview: {
+    port: 4173,
+    host: true
+  },
+
+  // Environment variables
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version)
+  }
+})        changeOrigin: true,
         secure: false
       }
     }
