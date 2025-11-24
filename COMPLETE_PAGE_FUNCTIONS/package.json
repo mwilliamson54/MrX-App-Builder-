@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler pages dev DASHBOARD --compatibility-date=2024-01-01",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+
+    "build": "cd DASHBOARD && npm install && npm run build"
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20241127.0"
