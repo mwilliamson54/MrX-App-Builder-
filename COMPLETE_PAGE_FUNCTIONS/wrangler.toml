@@ -1,10 +1,9 @@
 name = "mrx-app-builder"
-compatibility_date = "2025-11-24"
+compatibility_date = "2024-01-01"
 
-# Cloudflare will serve the dashboard from DASHBOARD/dist
+# frontend build output
 pages_build_output_dir = "./DASHBOARD/dist"
 
-# KV namespace (same for preview + production)
 [[kv_namespaces]]
 binding = "KV"
 id = "87974f4fff0a4525a4663b0ad8852ca7"
