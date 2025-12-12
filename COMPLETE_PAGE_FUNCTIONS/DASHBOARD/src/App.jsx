@@ -784,13 +784,39 @@ const App = () => {
   const { request } = useApi(auth.token);
   const api = new ApiService(request);
 
-  // Mock Authentication (Replace with real auth)
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      // Auto-login with mock token for demo
-      auth.login('mock-session-token-' + Date.now());
+  // Real Authentication - No mock data
+const [showLogin, setShowLogin] = useState(!auth.isAuthenticated);
+const [loginError, setLoginError] = useState('');
+const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+const handleLogin = async (username, password) => {
+  setIsLoggingIn(true);
+  setLoginError('');
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      auth.login(data.token, data.user);
+      setShowLogin(false);
+    } else {
+      setLoginError(data.message || 'Invalid username or password');
     }
-  }, []);
+  } catch (error) {
+    console.error('Login failed:', error);
+    setLoginError('Failed to connect to server. Please try again.');
+  } finally {
+    setIsLoggingIn(false);
+  }
+};
 
   // Load projects on mount
   useEffect(() => {
