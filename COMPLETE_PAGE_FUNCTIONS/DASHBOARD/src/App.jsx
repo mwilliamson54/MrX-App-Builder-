@@ -1126,10 +1126,14 @@ class MainActivity : AppCompatActivity() {
       </div>
     );
   }
+// Show login screen if not authenticated
+if (showLogin) {
+  return <LoginScreen onLogin={handleLogin} isLoading={isLoggingIn} error={loginError} theme={theme} onThemeToggle={toggleTheme} />;
+}
 
-  return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900'}`}>
-      <div className="h-screen flex flex-col">
+return (
+  <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900'}`}>
+    <div className="h-screen flex flex-col">
         <Header 
           currentProject={currentProject}
           onProjectChange={(id) => setCurrentProject(projects.find(p => p.id === id))}
