@@ -47,7 +47,7 @@
         -moz-osx-font-smoothing: grayscale;
       }
       
-      /* Loading screen */
+      /* Minimal loading screen - removed by React immediately */
       #loading-screen {
         position: fixed;
         inset: 0;
@@ -56,12 +56,10 @@
         align-items: center;
         justify-content: center;
         z-index: 9999;
-        transition: opacity 0.3s ease;
       }
       
-      #loading-screen.fade-out {
-        opacity: 0;
-        pointer-events: none;
+      #loading-screen.loaded {
+        display: none;
       }
       
       .loading-spinner {
@@ -98,7 +96,7 @@
     </style>
   </head>
   <body>
-    <!-- Loading Screen -->
+    <!-- Loading Screen (removed immediately by React) -->
     <div id="loading-screen">
       <div class="loading-spinner"></div>
     </div>
@@ -109,17 +107,32 @@
     <!-- Main Script -->
     <script type="module" src="/src/main.jsx"></script>
     
-    <!-- Remove loading screen after app loads -->
+    <!-- Hide loading screen as soon as DOM is ready -->
     <script>
-      window.addEventListener('load', () => {
-        setTimeout(() => {
+      // Remove loading screen immediately when React renders
+      const observer = new MutationObserver(() => {
+        const root = document.getElementById('root');
+        if (root && root.children.length > 0) {
           const loadingScreen = document.getElementById('loading-screen');
           if (loadingScreen) {
-            loadingScreen.classList.add('fade-out');
-            setTimeout(() => loadingScreen.remove(), 300);
+            loadingScreen.classList.add('loaded');
           }
-        }, 500);
+          observer.disconnect();
+        }
       });
+      
+      observer.observe(document.getElementById('root'), {
+        childList: true,
+        subtree: true
+      });
+      
+      // Fallback: remove after 2 seconds max
+      setTimeout(() => {
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+          loadingScreen.classList.add('loaded');
+        }
+      }, 2000);
     </script>
   </body>
 </html>
