@@ -32,7 +32,7 @@ const ChatContext = createContext(null);
 // Auth Hook
 const useAuth = () => {
   const [token, setToken] = useState(() => sessionStorage.getItem('sessionToken'));
-  const [isAuthenticated, setIsAuthenticated] = useState(!!token);
+  const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem('sessionToken'));
   const [user, setUser] = useState(() => {
     const userData = sessionStorage.getItem('userData');
     return userData ? JSON.parse(userData) : null;
@@ -199,7 +199,7 @@ class ApiService {
 // ============================================================================
 
 // Button Component
-const Button = ({ children, variant = 'primary', size = 'md', icon: Icon, onClick, disabled, className = '' }) => {
+const Button = ({ children, variant = 'primary', size = 'md', icon: Icon, onClick, disabled, className = '', type = 'button' }) => {
   const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
@@ -217,6 +217,7 @@ const Button = ({ children, variant = 'primary', size = 'md', icon: Icon, onClic
 
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
@@ -307,41 +308,38 @@ const Header = ({ currentProject, onProjectChange, jobStatus, theme, onThemeTogg
         )}
       </div>
 
- <div className="flex items-center gap-4">
-  {jobStatus && (
-    <Badge variant={jobStatus.state === 'running' ? 'info' : jobStatus.state === 'completed' ? 'success' : 'default'}>
-      {jobStatus.state === 'running' && <Loader2 className="animate-spin" size={12} />}
-      {jobStatus.state}
-    </Badge>
-  )}
-  
-  <button 
-    onClick={onThemeToggle}
-    className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-  >
-    {theme === 'dark' ? <Sun className="text-gray-400" size={20} /> : <Moon className="text-gray-400" size={20} />}
-  </button>
+      <div className="flex items-center gap-4">
+        {jobStatus && (
+          <Badge variant={jobStatus.state === 'running' ? 'info' : jobStatus.state === 'completed' ? 'success' : 'default'}>
+            {jobStatus.state === 'running' && <Loader2 className="animate-spin" size={12} />}
+            {jobStatus.state}
+          </Badge>
+        )}
+        
+        <button 
+          onClick={onThemeToggle}
+          className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+        >
+          {theme === 'dark' ? <Sun className="text-gray-400" size={20} /> : <Moon className="text-gray-400" size={20} />}
+        </button>
 
-  {/* ADD THIS LOGOUT BUTTON */}
-  <button
-    onClick={() => {
-      if (window.confirm('Are you sure you want to logout?')) {
-        window.location.reload(); // This will trigger re-authentication
-      }
-    }}
-    className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-gray-200"
-    title="Logout"
-  >
-    <Settings size={20} />
-  </button>
+        <button
+          onClick={() => {
+            if (window.confirm('Are you sure you want to logout?')) {
+              onLogout();
+            }
+          }}
+          className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-gray-200"
+          title="Logout"
+        >
+          <Settings size={20} />
+        </button>
 
-  <div className="flex items-center gap-2 text-sm">
-    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-    <span className="text-gray-400">Connected</span>
-  </div>
-</div>
-
-
+        <div className="flex items-center gap-2 text-sm">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-gray-400">Connected</span>
+        </div>
+      </div>
     </header>
   );
 };
@@ -773,8 +771,6 @@ const RightPanel = ({ activeTab, fileTree, selectedFile, logs, artifacts, onFile
 };
 
 // ============================================================================
-
-// ============================================================================
 // LOGIN SCREEN COMPONENT
 // ============================================================================
 
@@ -909,45 +905,49 @@ const App = () => {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
 
+  // Login state
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   // API
   const { request } = useApi(auth.token);
   const api = new ApiService(request);
 
-  // Real Authentication - No mock data
-const [showLogin, setShowLogin] = useState(!auth.isAuthenticated);
-const [loginError, setLoginError] = useState('');
-const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // Apply theme
+  useEffect(() => {
+    document.documentElement.className = theme;
+  }, [theme]);
 
-const handleLogin = async (username, password) => {
-  setIsLoggingIn(true);
-  setLoginError('');
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password })
-    });
+  // Real Authentication Handler
+  const handleLogin = async (username, password) => {
+    setIsLoggingIn(true);
+    setLoginError('');
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password })
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (response.ok && data.success) {
-      auth.login(data.token, data.user);
-      setShowLogin(false);
-    } else {
-      setLoginError(data.message || 'Invalid username or password');
+      if (response.ok && data.success) {
+        auth.login(data.token, data.user);
+      } else {
+        setLoginError(data.message || 'Invalid username or password');
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      setLoginError('Failed to connect to server. Please try again.');
+    } finally {
+      setIsLoggingIn(false);
     }
-  } catch (error) {
-    console.error('Login failed:', error);
-    setLoginError('Failed to connect to server. Please try again.');
-  } finally {
-    setIsLoggingIn(false);
-  }
-};
+  };
 
-  // Load projects on mount
+  // Load projects on mount (only when authenticated)
   useEffect(() => {
     if (auth.isAuthenticated) {
       loadProjects();
@@ -1240,37 +1240,31 @@ class MainActivity : AppCompatActivity() {
     }
   };
 
-  // Apply theme
-  useEffect(() => {
-    document.documentElement.className = theme;
-  }, [theme]);
-
+  // Show login screen if not authenticated
   if (!auth.isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Authenticating...</p>
-        </div>
-      </div>
+      <LoginScreen 
+        onLogin={handleLogin} 
+        isLoading={isLoggingIn} 
+        error={loginError} 
+        theme={theme} 
+        onThemeToggle={toggleTheme} 
+      />
     );
   }
-// Show login screen if not authenticated
-if (showLogin) {
-  return <LoginScreen onLogin={handleLogin} isLoading={isLoggingIn} error={loginError} theme={theme} onThemeToggle={toggleTheme} />;
-}
 
-return (
-  <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900'}`}>
-    <div className="h-screen flex flex-col">
-<Header 
-  currentProject={currentProject}
-  onProjectChange={(id) => setCurrentProject(projects.find(p => p.id === id))}
-  jobStatus={jobStatus}
-  theme={theme}
-  onThemeToggle={toggleTheme}
-  onLogout={auth.logout}
-/>
+  // Main Dashboard
+  return (
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900'}`}>
+      <div className="h-screen flex flex-col">
+        <Header 
+          currentProject={currentProject}
+          onProjectChange={(id) => setCurrentProject(projects.find(p => p.id === id))}
+          jobStatus={jobStatus}
+          theme={theme}
+          onThemeToggle={toggleTheme}
+          onLogout={auth.logout}
+        />
 
         <div className="flex-1 flex overflow-hidden">
           <LeftSidebar
