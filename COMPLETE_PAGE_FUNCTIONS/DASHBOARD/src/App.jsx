@@ -341,11 +341,7 @@ const Header = ({ currentProject, onProjectChange, jobStatus, theme, onThemeTogg
   </div>
 </div>
 
-        <div className="flex items-center gap-2 text-sm">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-gray-400">Connected</span>
-        </div>
-      </div>
+
     </header>
   );
 };
