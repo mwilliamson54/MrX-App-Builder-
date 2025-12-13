@@ -1,0 +1,6 @@
+# Backend API routes
+/api/*  200!
+/test   200!
+
+# Frontend fallback
+/*      /index.html   200
