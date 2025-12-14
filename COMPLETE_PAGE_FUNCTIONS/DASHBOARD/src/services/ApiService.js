@@ -16,6 +16,19 @@ export class ApiService {
     return this.request(`/api/projects/${id}`);
   }
 
+  async createProject(data) {
+    return this.request('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteProject(id) {
+    return this.request(`/api/projects/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Chats
   async getChats(projectId) {
     return this.request(`/api/projects/${projectId}/chats`);
