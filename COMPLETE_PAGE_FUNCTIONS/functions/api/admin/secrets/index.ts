@@ -1,6 +1,8 @@
 // functions/api/admin/secrets/index.ts
+import type { Env } from '../../../../types';
 import { validateAdminApiKey } from '../../../../lib/auth/admin';
 import { storeSecret } from '../../../../lib/kv/secrets';
+import { createErrorResponse, ErrorCodes } from '../../../../lib/utils/errors';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
@@ -52,3 +54,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 };
 
+interface PagesFunction<Env = unknown> {
+  (context: {
+    request: Request;
+    env: Env;
+    params: Record<string, string>;
+    next: () => Promise<Response>;
+    data: Record<string, unknown>;
+  }): Promise<Response> | Response;
+}
