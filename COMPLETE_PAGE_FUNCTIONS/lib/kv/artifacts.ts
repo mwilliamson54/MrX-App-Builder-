@@ -1,5 +1,7 @@
 // lib/kv/artifacts.ts
 import type { Artifact, Env } from '../../types';
+import { AppError, ErrorCodes } from '../utils/errors';
+import { Logger } from '../utils/logger';
 import { toISOString } from '../utils/dates';
 import { generateArtifactId } from '../utils/generators';
 
@@ -32,10 +34,10 @@ export async function addArtifact(
     
     await env.KV.put(key, JSON.stringify(trimmed));
     
-    SystemLogger.info('Added artifact', { projectId, artifactId: artifact.artifactId });
+    Logger.info('Added artifact', { projectId, artifactId: artifact.artifactId });
     return artifact;
   } catch (error) {
-    SystemLogger.error('Failed to add artifact', { projectId, error });
+    Logger.error('Failed to add artifact', { projectId, error });
     throw new AppError(ErrorCodes.KV_WRITE_FAILED, 'Failed to add artifact', 500);
   }
 }
@@ -45,10 +47,10 @@ export async function listArtifacts(projectId: string, env: Env): Promise<Artifa
     const key = getArtifactsKey(projectId);
     const artifacts = await env.KV.get(key, { type: 'json' }) as Artifact[] || [];
     
-    SystemLogger.debug('Listed artifacts', { projectId, count: artifacts.length });
+    Logger.debug('Listed artifacts', { projectId, count: artifacts.length });
     return artifacts;
   } catch (error) {
-    SystemLogger.error('Failed to list artifacts', { projectId, error });
+    Logger.error('Failed to list artifacts', { projectId, error });
     throw new AppError(ErrorCodes.INTERNAL_ERROR, 'Failed to list artifacts', 500);
   }
 }
@@ -63,13 +65,13 @@ export async function getArtifact(
     const artifact = artifacts.find(a => a.artifactId === artifactId);
     
     if (!artifact) {
-      SystemLogger.warn('Artifact not found', { projectId, artifactId });
+      Logger.warn('Artifact not found', { projectId, artifactId });
       return null;
     }
     
     return artifact;
   } catch (error) {
-    SystemLogger.error('Failed to get artifact', { projectId, artifactId, error });
+    Logger.error('Failed to get artifact', { projectId, artifactId, error });
     throw new AppError(ErrorCodes.INTERNAL_ERROR, 'Failed to get artifact', 500);
   }
 }
@@ -86,9 +88,9 @@ export async function deleteArtifact(
     const filtered = artifacts.filter(a => a.artifactId !== artifactId);
     await env.KV.put(key, JSON.stringify(filtered));
     
-    SystemLogger.info('Deleted artifact', { projectId, artifactId });
+    Logger.info('Deleted artifact', { projectId, artifactId });
   } catch (error) {
-    SystemLogger.error('Failed to delete artifact', { projectId, artifactId, error });
+    Logger.error('Failed to delete artifact', { projectId, artifactId, error });
     throw new AppError(ErrorCodes.KV_WRITE_FAILED, 'Failed to delete artifact', 500);
   }
 }
