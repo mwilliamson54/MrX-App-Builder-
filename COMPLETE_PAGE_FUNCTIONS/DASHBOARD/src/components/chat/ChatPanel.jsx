@@ -1,0 +1,44 @@
+import React, { useRef, useEffect } from 'react';
+import { MessageSquare, Play, Code, FileText } from 'lucide-react';
+import { Button } from '../ui';
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
+
+// ============================================================================
+// CHAT PANEL (CENTER PANEL) COMPONENT
+// ============================================================================
+
+export const ChatPanel = ({ messages, onSendMessage, isLoading }) => {
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  return (
+    <div className="flex-1 flex flex-col bg-gray-950">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <MessageSquare size={64} className="mb-4 opacity-20" />
+            <p className="text-lg">Start a conversation</p>
+            <p className="text-sm">Ask me to build features, fix bugs, or analyze code</p>
+          </div>
+        ) : (
+          messages.map((msg, idx) => <ChatMessage key={idx} message={msg} />)
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="border-t border-gray-800 p-4 bg-gray-900">
+        <div className="flex gap-2 mb-4">
+          <Button size="sm" variant="secondary" icon={Play}>Build APK</Button>
+          <Button size="sm" variant="secondary" icon={Code}>Apply Patch</Button>
+          <Button size="sm" variant="secondary" icon={FileText}>Analyze Code</Button>
+        </div>
+      </div>
+
+      <ChatInput onSend={onSendMessage} isLoading={isLoading} />
+    </div>
+  );
+};
