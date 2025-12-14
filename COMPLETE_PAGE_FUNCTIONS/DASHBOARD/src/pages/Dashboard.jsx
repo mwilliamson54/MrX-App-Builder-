@@ -71,16 +71,19 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
   const loadChats = async () => {
     try {
       const chatsData = await api.getChats(currentProject.id);
+      console.log('Loaded chats:', chatsData);
+      
       setChats(chatsData);
       if (chatsData.length > 0) {
         setCurrentChat(chatsData[0]);
       } else {
-        // No chats exist, create a new one automatically
-        await handleNewChat();
+        // No chats exist - user needs to create one manually
+        console.log('No chats found, user should create one');
+        setCurrentChat(null);
       }
     } catch (error) {
       console.error('Failed to load chats:', error);
-      // Don't set mock chats - let user create real ones
+      // Don't set mock chats - let user know there's an issue
       setChats([]);
       setCurrentChat(null);
     }
@@ -276,21 +279,26 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
         llmMode: 'custom'
       });
       
-      const newChat = newChatData.chat;
+      console.log('Chat created successfully:', newChatData);
+      
+      // Backend should return the chat object with an id
+      const newChat = newChatData.chat || newChatData;
+      
+      if (!newChat || !newChat.id) {
+        throw new Error('Invalid chat response from server');
+      }
+      
       setChats(prev => [newChat, ...prev]);
       setCurrentChat(newChat);
       setMessages([]);
     } catch (error) {
       console.error('Failed to create chat:', error);
-      const newChat = {
-        id: 'chat-' + Date.now(),
-        title: 'New Chat',
-        lastUpdated: new Date().toISOString(),
-        hasErrors: false
-      };
-      setChats(prev => [newChat, ...prev]);
-      setCurrentChat(newChat);
-      setMessages([]);
+      
+      // Show error to user instead of creating mock chat
+      alert(`Failed to create chat: ${error.message}\n\nPlease check your connection and try again.`);
+      
+      // Don't create mock chats - they won't work with the backend
+      setCurrentChat(null);
     }
   };
 
