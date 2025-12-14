@@ -1,8 +1,11 @@
 // functions/api/projects/[projectId]/chats/index.ts
+import type { Env } from '../../../../../types';
+import { requireAuth } from '../../../../../lib/auth/session';
 import { listChats, createChat } from '../../../../../lib/kv/chats';
 import { addMessage } from '../../../../../lib/kv/messages';
 import { createJob } from '../../../../../lib/kv/jobs';
 import { projectExists } from '../../../../../lib/kv/projects';
+import { createErrorResponse, ErrorCodes } from '../../../../../lib/utils/errors';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context;
@@ -112,3 +115,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 };
 
+interface PagesFunction<Env = unknown> {
+  (context: {
+    request: Request;
+    env: Env;
+    params: Record<string, string>;
+    next: () => Promise<Response>;
+    data: Record<string, unknown>;
+  }): Promise<Response> | Response;
+  }
