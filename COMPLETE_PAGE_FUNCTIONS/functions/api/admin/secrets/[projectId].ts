@@ -1,6 +1,8 @@
 // functions/api/admin/secrets/[projectId].ts
+import type { Env } from '../../../../types';
 import { validateColabClaimToken } from '../../../../lib/auth/colab';
 import { retrieveSecret } from '../../../../lib/kv/secrets';
+import { createErrorResponse, ErrorCodes } from '../../../../lib/utils/errors';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context;
