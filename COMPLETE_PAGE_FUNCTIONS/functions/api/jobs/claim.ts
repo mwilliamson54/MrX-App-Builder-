@@ -1,58 +1,47 @@
-// functions/api/jobs/create.ts
+// functions/api/jobs/claim.ts
 import type { Env } from '../../../types';
-import { requireAuth } from '../../../lib/auth/session';
-import { createJob } from '../../../lib/kv/jobs';
-import { projectExists } from '../../../lib/kv/projects';
+import { validateColabAgent } from '../../../lib/auth/colab';
+import { claimJob } from '../../../lib/kv/jobs';
+import { createClaimTokenForColab } from '../../../lib/kv/secrets';
 import { createErrorResponse, ErrorCodes } from '../../../lib/utils/errors';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   
   try {
-    await requireAuth(request, env);
+    // Validate Colab agent credentials
+    const colabId = await validateColabAgent(request, env);
     
-    const body = await request.json();
-    const { projectId, jobType, payload } = body;
+    // Try to claim a job
+    const job = await claimJob(colabId, env);
     
-    if (!projectId || !jobType || !payload) {
-      return createErrorResponse(
-        ErrorCodes.INVALID_REQUEST,
-        'projectId, jobType, and payload are required',
-        400
-      );
+    if (!job) {
+      // No jobs available
+      return new Response(JSON.stringify({ job: null }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
-    if (!(await projectExists(projectId, env))) {
-      return createErrorResponse(
-        ErrorCodes.PROJECT_NOT_FOUND,
-        `Project ${projectId} not found`,
-        404
-      );
-    }
+    // Generate claim token for secret retrieval
+    const claimToken = await createClaimTokenForColab(colabId, env);
     
-    const validJobTypes = ['chat', 'patch', 'build', 'index-rebuild'];
-    if (!validJobTypes.includes(jobType)) {
-      return createErrorResponse(
-        ErrorCodes.INVALID_REQUEST,
-        `Invalid job type. Must be one of: ${validJobTypes.join(', ')}`,
-        400
-      );
-    }
-    
-    const job = await createJob(
-      projectId,
-      { type: jobType, payload },
-      env
-    );
-    
-    return new Response(JSON.stringify(job), {
-      status: 201,
+    return new Response(JSON.stringify({ job, claimToken }), {
+      status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error) {
+    if (error instanceof Error && 'statusCode' in error) {
+      return createErrorResponse(
+        (error as any).code,
+        error.message,
+        (error as any).statusCode
+      );
+    }
+    
     return createErrorResponse(
       ErrorCodes.INTERNAL_ERROR,
-      'Failed to create job',
+      'Failed to claim job',
       500
     );
   }
