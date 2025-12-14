@@ -1,7 +1,9 @@
 // functions/api/jobs/create.ts
+import type { Env } from '../../../types';
 import { requireAuth } from '../../../lib/auth/session';
 import { createJob } from '../../../lib/kv/jobs';
 import { projectExists } from '../../../lib/kv/projects';
+import { createErrorResponse, ErrorCodes } from '../../../lib/utils/errors';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
@@ -56,3 +58,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 };
 
+interface PagesFunction<Env = unknown> {
+  (context: {
+    request: Request;
+    env: Env;
+    params: Record<string, string>;
+    next: () => Promise<Response>;
+    data: Record<string, unknown>;
+  }): Promise<Response> | Response;
+}
