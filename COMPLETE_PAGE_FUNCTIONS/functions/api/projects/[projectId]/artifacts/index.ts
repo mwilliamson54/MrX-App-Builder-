@@ -1,5 +1,9 @@
 // functions/api/projects/[projectId]/artifacts/index.ts
+import type { Env } from '../../../../../types';
+import { requireAuth } from '../../../../../lib/auth/session';
+import { projectExists } from '../../../../../lib/kv/projects';
 import { listArtifacts } from '../../../../../lib/kv/artifacts';
+import { createErrorResponse, ErrorCodes } from '../../../../../lib/utils/errors';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context;
