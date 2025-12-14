@@ -3,6 +3,7 @@ import { useApi } from '../hooks';
 import { ApiService } from '../services/ApiService';
 import { Header, LeftSidebar, RightPanel } from '../layout';
 import { ChatPanel } from '../components/chat';
+import { CreateProjectModal } from '../components/projects';
 
 // ============================================================================
 // DASHBOARD PAGE COMPONENT
@@ -23,6 +24,8 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   // API
   const { request } = useApi(auth.token);
@@ -60,18 +63,17 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
         setCurrentProject(projectsData[0]);
         console.log('✅ Current project set to:', projectsData[0]);
       } else {
-        console.warn('⚠️ No projects found');
+        console.warn('⚠️ No projects found - user should create one');
+        setCurrentProject(null);
+        // Show create project modal automatically if no projects
+        setShowCreateProjectModal(true);
       }
     } catch (error) {
       console.error('❌ Failed to load projects:', error);
-      // Fallback to mock data
-      const mockProjects = [
-        { id: 'mrx-weather', name: 'Weather App', repoUrl: 'github.com/user/mrx-weather' },
-        { id: 'mrx-todo', name: 'Todo App', repoUrl: 'github.com/user/mrx-todo' }
-      ];
-      console.log('⚠️ Using mock projects:', mockProjects);
-      setProjects(mockProjects);
-      setCurrentProject(mockProjects[0]);
+      setProjects([]);
+      setCurrentProject(null);
+      // Show create project modal on error too
+      setShowCreateProjectModal(true);
     }
   };
 
@@ -353,12 +355,60 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
     }
   };
 
+  // Project management
+  const handleCreateProject = async (projectData) => {
+    console.log('🔵 Creating new project:', projectData);
+    setIsCreatingProject(true);
+    
+    try {
+      const newProjectData = await api.createProject({
+        name: projectData.name,
+        repoUrl: projectData.repoUrl,
+        description: projectData.description || ''
+      });
+      
+      console.log('✅ Project created successfully:', newProjectData);
+      
+      // Backend should return the project object
+      const newProject = newProjectData.project || newProjectData;
+      
+      if (!newProject || !newProject.id) {
+        console.error('❌ Invalid project response:', newProjectData);
+        throw new Error('Invalid project response from server');
+      }
+      
+      // Add to projects list and set as current
+      setProjects(prev => [newProject, ...prev]);
+      setCurrentProject(newProject);
+      
+      console.log('✅ Project set as current:', newProject);
+      
+      return true; // Success
+    } catch (error) {
+      console.error('❌ Failed to create project:', error);
+      alert(`Failed to create project: ${error.message}\n\nPlease check your backend logs.`);
+      return false; // Failure
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
+  const handleProjectChange = (projectId) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setCurrentProject(project);
+      console.log('✅ Switched to project:', project);
+    }
+  };
+
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900'}`}>
       <div className="h-screen flex flex-col">
         <Header 
           currentProject={currentProject}
-          onProjectChange={(id) => setCurrentProject(projects.find(p => p.id === id))}
+          projects={projects}
+          onProjectChange={handleProjectChange}
+          onCreateProject={() => setShowCreateProjectModal(true)}
           jobStatus={jobStatus}
           theme={theme}
           onThemeToggle={toggleTheme}
@@ -382,6 +432,7 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
             hasActiveChat={!!currentChat}
+            hasProject={!!currentProject}
           />
 
           <RightPanel
@@ -394,6 +445,13 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
           />
         </div>
       </div>
+
+      <CreateProjectModal
+        isOpen={showCreateProjectModal}
+        onClose={() => setShowCreateProjectModal(false)}
+        onCreate={handleCreateProject}
+        isLoading={isCreatingProject}
+      />
     </div>
   );
 };
