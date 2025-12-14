@@ -1,47 +1,69 @@
-// functions/api/jobs/claim.ts
-import { validateColabAgent } from '../../../lib/auth/colab';
-import { claimJob } from '../../../lib/kv/jobs';
-import { createClaimTokenForColab } from '../../../lib/kv/secrets';
+// functions/api/jobs/create.ts
+import type { Env } from '../../../types';
+import { requireAuth } from '../../../lib/auth/session';
+import { createJob } from '../../../lib/kv/jobs';
+import { projectExists } from '../../../lib/kv/projects';
+import { createErrorResponse, ErrorCodes } from '../../../lib/utils/errors';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   
   try {
-    // Validate Colab agent credentials
-    const colabId = await validateColabAgent(request, env);
+    await requireAuth(request, env);
     
-    // Try to claim a job
-    const job = await claimJob(colabId, env);
+    const body = await request.json();
+    const { projectId, jobType, payload } = body;
     
-    if (!job) {
-      // No jobs available
-      return new Response(JSON.stringify({ job: null }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    // Generate claim token for secret retrieval
-    const claimToken = await createClaimTokenForColab(colabId, env);
-    
-    return new Response(JSON.stringify({ job, claimToken }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    if (error instanceof Error && 'statusCode' in error) {
+    if (!projectId || !jobType || !payload) {
       return createErrorResponse(
-        (error as any).code,
-        error.message,
-        (error as any).statusCode
+        ErrorCodes.INVALID_REQUEST,
+        'projectId, jobType, and payload are required',
+        400
       );
     }
     
+    if (!(await projectExists(projectId, env))) {
+      return createErrorResponse(
+        ErrorCodes.PROJECT_NOT_FOUND,
+        `Project ${projectId} not found`,
+        404
+      );
+    }
+    
+    const validJobTypes = ['chat', 'patch', 'build', 'index-rebuild'];
+    if (!validJobTypes.includes(jobType)) {
+      return createErrorResponse(
+        ErrorCodes.INVALID_REQUEST,
+        `Invalid job type. Must be one of: ${validJobTypes.join(', ')}`,
+        400
+      );
+    }
+    
+    const job = await createJob(
+      projectId,
+      { type: jobType, payload },
+      env
+    );
+    
+    return new Response(JSON.stringify(job), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
     return createErrorResponse(
       ErrorCodes.INTERNAL_ERROR,
-      'Failed to claim job',
+      'Failed to create job',
       500
     );
   }
 };
 
+interface PagesFunction<Env = unknown> {
+  (context: {
+    request: Request;
+    env: Env;
+    params: Record<string, string>;
+    next: () => Promise<Response>;
+    data: Record<string, unknown>;
+  }): Promise<Response> | Response;
+}
