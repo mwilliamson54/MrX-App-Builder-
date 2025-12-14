@@ -22,6 +22,7 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   // API
   const { request } = useApi(auth.token);
@@ -52,17 +53,23 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
   const loadProjects = async () => {
     try {
       const projectsData = await api.getProjects();
+      console.log('✅ Projects loaded:', projectsData);
+      
       setProjects(projectsData);
       if (projectsData.length > 0) {
         setCurrentProject(projectsData[0]);
+        console.log('✅ Current project set to:', projectsData[0]);
+      } else {
+        console.warn('⚠️ No projects found');
       }
     } catch (error) {
-      console.error('Failed to load projects:', error);
+      console.error('❌ Failed to load projects:', error);
       // Fallback to mock data
       const mockProjects = [
         { id: 'mrx-weather', name: 'Weather App', repoUrl: 'github.com/user/mrx-weather' },
         { id: 'mrx-todo', name: 'Todo App', repoUrl: 'github.com/user/mrx-todo' }
       ];
+      console.log('⚠️ Using mock projects:', mockProjects);
       setProjects(mockProjects);
       setCurrentProject(mockProjects[0]);
     }
@@ -273,32 +280,56 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
   };
 
   const handleNewChat = async () => {
+    if (!currentProject) {
+      alert('No project selected. Please select or create a project first.');
+      return;
+    }
+
+    console.log('🔵 Creating new chat for project:', currentProject.id);
+    setIsCreatingChat(true);
+    
     try {
-      const newChatData = await api.createChat(currentProject.id, {
+      const payload = {
         title: 'New Chat',
         llmMode: 'custom'
-      });
+      };
       
-      console.log('Chat created successfully:', newChatData);
+      console.log('📤 Sending payload:', payload);
+      
+      const newChatData = await api.createChat(currentProject.id, payload);
+      
+      console.log('✅ Chat created successfully:', newChatData);
       
       // Backend should return the chat object with an id
       const newChat = newChatData.chat || newChatData;
       
       if (!newChat || !newChat.id) {
-        throw new Error('Invalid chat response from server');
+        console.error('❌ Invalid chat response:', newChatData);
+        throw new Error('Invalid chat response from server - missing chat ID');
       }
       
+      console.log('✅ New chat object:', newChat);
       setChats(prev => [newChat, ...prev]);
       setCurrentChat(newChat);
       setMessages([]);
     } catch (error) {
-      console.error('Failed to create chat:', error);
+      console.error('❌ Failed to create chat:', {
+        error: error.message,
+        projectId: currentProject?.id,
+        stack: error.stack
+      });
       
-      // Show error to user instead of creating mock chat
-      alert(`Failed to create chat: ${error.message}\n\nPlease check your connection and try again.`);
+      // Show detailed error to user
+      const errorMsg = error.message.includes('internal error') 
+        ? 'Server error: The backend encountered an issue.\n\nPossible causes:\n• Database connection issue\n• Invalid project configuration\n• Missing required fields\n\nCheck backend logs for details.'
+        : `Failed to create chat: ${error.message}`;
+        
+      alert(errorMsg);
       
       // Don't create mock chats - they won't work with the backend
       setCurrentChat(null);
+    } finally {
+      setIsCreatingChat(false);
     }
   };
 
@@ -343,6 +374,7 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
             currentChatId={currentChat?.id}
             isCollapsed={leftCollapsed}
             onToggleCollapse={() => setLeftCollapsed(!leftCollapsed)}
+            isCreatingChat={isCreatingChat}
           />
 
           <ChatPanel
