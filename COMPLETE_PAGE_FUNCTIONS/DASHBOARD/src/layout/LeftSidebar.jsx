@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Search, Plus, MessageSquare, Clock, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, Plus, MessageSquare, Clock, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { Input, Button } from '../components/ui';
 
 // ============================================================================
 // LEFT SIDEBAR COMPONENT
 // ============================================================================
 
-export const LeftSidebar = ({ projects, chats, onChatSelect, onNewChat, currentChatId, isCollapsed, onToggleCollapse }) => {
+export const LeftSidebar = ({ projects, chats, onChatSelect, onNewChat, currentChatId, isCollapsed, onToggleCollapse, isCreatingChat }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
 
@@ -58,9 +58,15 @@ export const LeftSidebar = ({ projects, chats, onChatSelect, onNewChat, currentC
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Chats</h3>
               <button 
                 onClick={onNewChat}
-                className="p-1 hover:bg-gray-800 rounded-md transition-colors"
+                disabled={isCreatingChat}
+                className="p-1 hover:bg-gray-800 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isCreatingChat ? 'Creating chat...' : 'New chat'}
               >
-                <Plus className="text-gray-400" size={16} />
+                {isCreatingChat ? (
+                  <Loader2 className="text-blue-400 animate-spin" size={16} />
+                ) : (
+                  <Plus className="text-gray-400" size={16} />
+                )}
               </button>
             </div>
 
