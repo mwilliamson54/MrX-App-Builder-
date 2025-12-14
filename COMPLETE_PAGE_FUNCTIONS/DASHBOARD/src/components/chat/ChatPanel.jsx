@@ -8,12 +8,27 @@ import { ChatInput } from './ChatInput';
 // CHAT PANEL (CENTER PANEL) COMPONENT
 // ============================================================================
 
-export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat }) => {
+export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, hasProject }) => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  if (!hasProject) {
+    return (
+      <div className="flex-1 flex flex-col bg-gray-950">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-gray-500 max-w-md px-6">
+            <MessageSquare size={64} className="mb-4 opacity-20 mx-auto" />
+            <p className="text-lg mb-2">No Project Selected</p>
+            <p className="text-sm mb-4">Create a new project to get started with MrX Builder</p>
+            <p className="text-xs text-gray-600">Click the + button in the header to create your first project</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasActiveChat) {
     return (
