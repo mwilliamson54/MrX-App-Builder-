@@ -8,12 +8,26 @@ import { ChatInput } from './ChatInput';
 // CHAT PANEL (CENTER PANEL) COMPONENT
 // ============================================================================
 
-export const ChatPanel = ({ messages, onSendMessage, isLoading }) => {
+export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat }) => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  if (!hasActiveChat) {
+    return (
+      <div className="flex-1 flex flex-col bg-gray-950">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <MessageSquare size={64} className="mb-4 opacity-20 mx-auto" />
+            <p className="text-lg mb-2">No chat selected</p>
+            <p className="text-sm">Create a new chat to get started</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-gray-950">
