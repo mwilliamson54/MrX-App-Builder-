@@ -1,5 +1,8 @@
 // lib/auth/colab.ts
+import type { Env } from '../../types';
 import { validateAndUseClaimToken } from '../kv/secrets';
+import { AppError, ErrorCodes } from '../utils/errors';
+import { Logger } from '../utils/logger';
 
 const COLAB_AGENT_SECRET_HEADER = 'X-Colab-Secret';
 const COLAB_CLAIM_TOKEN_HEADER = 'X-Claim-Token';
@@ -43,4 +46,3 @@ export async function validateColabClaimToken(
   
   Logger.info('Claim token validated', { colabId });
 }
-
