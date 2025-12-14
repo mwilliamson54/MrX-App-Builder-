@@ -74,19 +74,15 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
       setChats(chatsData);
       if (chatsData.length > 0) {
         setCurrentChat(chatsData[0]);
+      } else {
+        // No chats exist, create a new one automatically
+        await handleNewChat();
       }
     } catch (error) {
       console.error('Failed to load chats:', error);
-      const mockChats = [
-        { 
-          id: 'chat-1', 
-          title: 'Initial Setup', 
-          lastUpdated: new Date().toISOString(),
-          hasErrors: false
-        }
-      ];
-      setChats(mockChats);
-      setCurrentChat(mockChats[0]);
+      // Don't set mock chats - let user create real ones
+      setChats([]);
+      setCurrentChat(null);
     }
   };
 
@@ -137,7 +133,10 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
 
   // Message handler
   const handleSendMessage = async (messageData) => {
-    if (!currentProject || !currentChat) return;
+    if (!currentProject || !currentChat) {
+      console.error('No project or chat selected');
+      return;
+    }
 
     setIsLoading(true);
 
@@ -342,6 +341,7 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
             messages={messages}
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
+            hasActiveChat={!!currentChat}
           />
 
           <RightPanel
