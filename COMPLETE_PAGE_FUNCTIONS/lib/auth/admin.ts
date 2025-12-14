@@ -1,4 +1,9 @@
 // lib/auth/admin.ts
+import type { Env } from '../../types';
+import { requireAuth } from './session';
+import { AppError, ErrorCodes } from '../utils/errors';
+import { Logger } from '../utils/logger';
+
 export async function requireAdmin(request: Request, env: Env): Promise<void> {
   // First validate session
   const session = await requireAuth(request, env);
@@ -20,4 +25,3 @@ export async function validateAdminApiKey(request: Request, env: Env): Promise<v
     throw new AppError(ErrorCodes.UNAUTHORIZED, 'Invalid admin API key', 401);
   }
 }
-
