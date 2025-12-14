@@ -1,6 +1,8 @@
 // functions/api/jobs/[jobId]/index.ts
+import type { Env } from '../../../../types';
 import { validateColabAgent } from '../../../../lib/auth/colab';
-import { updateJobState, getJob } from '../../../../lib/kv/jobs';
+import { updateJobState } from '../../../../lib/kv/jobs';
+import { createErrorResponse, ErrorCodes } from '../../../../lib/utils/errors';
 
 export const onRequestPatch: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context;
