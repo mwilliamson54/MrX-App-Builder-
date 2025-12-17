@@ -94,14 +94,29 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
     }
   };
 
+  // Helper function to normalize chat (add id field from chatId)
+  const normalizeChat = (chat) => {
+    if (!chat) return null;
+    if (chat.id) return chat;
+    return {
+      ...chat,
+      id: chat.chatId || chat.id
+    };
+  };
+
   const loadChats = async () => {
     try {
       const chatsData = await api.getChats(currentProject.id);
       console.log('Loaded chats:', chatsData);
+
+      // Normalize chats to ensure they have an id field
+      const normalizedChats = Array.isArray(chatsData)
+        ? chatsData.map(normalizeChat)
+        : [];
       
-      setChats(chatsData);
-      if (chatsData.length > 0) {
-        setCurrentChat(chatsData[0]);
+      setChats(normalizedChats);
+      if (normalizedChats.length > 0) {
+        setCurrentChat(normalizedChats[0]);
       } else {
         // No chats exist - user needs to create one manually
         console.log('No chats found, user should create one');
@@ -320,9 +335,12 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
       console.log('✅ Chat created successfully:', newChatData);
       
       // Backend should return the chat object with an id
-      const newChat = newChatData.chat || newChatData;
+      const rawChat = newChatData.chat || newChatData;
+
+      // Normalize chat to ensure it has an id field
+      const newChat = normalizeChat(rawChat);
       
-      if (!newChat || !newChat.id) {
+      if (!newChat || (!newChat.id && !newChat.chatId)) {
         console.error('❌ Invalid chat response:', newChatData);
         throw new Error('Invalid chat response from server - missing chat ID');
       }
