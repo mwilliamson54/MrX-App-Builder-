@@ -52,16 +52,33 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
     }
   }, [currentChat]);
 
+  // Helper function to normalize project (add id field from projectId)
+  const normalizeProject = (project) => {
+    if (!project) return null;
+    // If project already has id, return as is
+    if (project.id) return project;
+    // Otherwise, add id field from projectId
+    return {
+      ...project,
+      id: project.projectId || project.id
+    };
+  };
+
   // Load functions
   const loadProjects = async () => {
     try {
       const projectsData = await api.getProjects();
       console.log('✅ Projects loaded:', projectsData);
       
-      setProjects(projectsData);
-      if (projectsData.length > 0) {
-        setCurrentProject(projectsData[0]);
-        console.log('✅ Current project set to:', projectsData[0]);
+      // Normalize projects to ensure they have an id field
+      const normalizedProjects = Array.isArray(projectsData) 
+        ? projectsData.map(normalizeProject)
+        : [];
+      
+      setProjects(normalizedProjects);
+      if (normalizedProjects.length > 0) {
+        setCurrentProject(normalizedProjects[0]);
+        console.log('✅ Current project set to:', normalizedProjects[0]);
       } else {
         console.warn('⚠️ No projects found - user should create one');
         setCurrentProject(null);
@@ -370,9 +387,12 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
       console.log('✅ Project created successfully:', newProjectData);
       
       // Backend should return the project object
-      const newProject = newProjectData.project || newProjectData;
+      const rawProject = newProjectData.project || newProjectData;
       
-      if (!newProject || !newProject.id) {
+      // Normalize the project to ensure it has an id field
+      const newProject = normalizeProject(rawProject);
+      
+      if (!newProject || (!newProject.id && !newProject.projectId)) {
         console.error('❌ Invalid project response:', newProjectData);
         throw new Error('Invalid project response from server');
       }
