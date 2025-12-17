@@ -1,12 +1,11 @@
 // functions/api/projects/index.ts
 import type { Env } from '../../../types';
 import { requireAuth } from '../../../lib/auth/session';
-import { listMrxRepositories } from '../../../lib/github/repos';
-import { createProject } from '../../../lib/kv/projects';
+import { createProject, listProjects } from '../../../lib/kv/projects';
 import { createErrorResponse, ErrorCodes } from '../../../lib/utils/errors';
 import { Logger } from '../../../lib/utils/logger';
 
-// GET /api/projects - List all projects
+// GET /api/projects - List all projects from KV
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   
@@ -14,8 +13,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // Validate session
     await requireAuth(request, env);
     
-    // List all MrX projects from GitHub
-    const projects = await listMrxRepositories(env);
+    // List all projects from KV store
+    const projects = await listProjects(env);
     
     return new Response(JSON.stringify(projects), {
       status: 200,
