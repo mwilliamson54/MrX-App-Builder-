@@ -21,7 +21,7 @@ X-Colab-Id: <colab-agent-id>
 ### Projects
 
 #### GET /api/projects
-List all projects (from GitHub repos with `mrx-` prefix)
+List all projects stored in Workers KV
 
 **Response:**
 ```json

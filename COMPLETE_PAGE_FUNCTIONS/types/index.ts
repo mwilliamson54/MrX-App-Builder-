@@ -113,6 +113,11 @@ export interface Env {
   ENCRYPTION_KEY: string;
   GITHUB_PAT_MASTER: string;
   ADMIN_API_KEY: string;
+  // Admin login (single admin user for now)
+  ADMIN_USERNAME: string;
+  ADMIN_PASSWORD: string;
+  // Shared secret for Colab agent authentication
+  COLAB_AGENT_SECRET: string;
 }
 
 export interface RequestContext {

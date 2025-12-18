@@ -19,12 +19,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
     
-    // Validate credentials
-    // For now, using hardcoded admin credentials
-    // TODO: Replace with database-backed authentication
-    const ADMIN_USERNAME = 'MrX';
-    const ADMIN_PASSWORD = 'MrX@786'; // Change this to your desired password
-    
+    // Validate credentials against environment-configured admin user.
+    // For production you should ideally back this with a real user store,
+    // but this keeps credentials out of source control.
+    const ADMIN_USERNAME = env.ADMIN_USERNAME;
+    const ADMIN_PASSWORD = env.ADMIN_PASSWORD;
+
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
       // Generate JWT token
       const token = await signJWT({

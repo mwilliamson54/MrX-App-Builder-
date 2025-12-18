@@ -13,11 +13,15 @@ export async function validateColabAgent(request: Request, env: Env): Promise<st
   if (!colabSecret) {
     throw new AppError(ErrorCodes.UNAUTHORIZED, 'Missing Colab agent credentials', 401);
   }
-  
-  // In a real implementation, verify this secret against registered Colab agents
-  // For now, we'll use a simple environment variable check
-  // In production, this should be stored in KV with agent registration
-  
+
+  // Verify shared secret for Colab agent.
+  // In a more advanced setup, you could store multiple agents in KV
+  // and validate per-agent secrets. For now we use a single env secret.
+  if (!env.COLAB_AGENT_SECRET || colabSecret !== env.COLAB_AGENT_SECRET) {
+    Logger.warn('Invalid Colab agent secret');
+    throw new AppError(ErrorCodes.UNAUTHORIZED, 'Invalid Colab agent credentials', 401);
+  }
+
   const colabId = request.headers.get('X-Colab-Id');
   if (!colabId) {
     throw new AppError(ErrorCodes.UNAUTHORIZED, 'Missing Colab ID', 401);
