@@ -6,7 +6,7 @@ import { ChatPanel } from '../components/chat';
 import { CreateProjectModal } from '../components/projects';
 
 // ============================================================================
-// DASHBOARD PAGE COMPONENT - FIXED PROJECT HANDLING
+// DASHBOARD PAGE COMPONENT - FIXED HEIGHT LAYOUT
 // ============================================================================
 
 export const Dashboard = ({ auth, theme, toggleTheme }) => {
@@ -462,8 +462,8 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
   };
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900'}`}>
-      <div className="h-screen flex flex-col">
+    <div className={`${theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-white text-gray-900'}`}>
+      <div className="h-screen flex flex-col overflow-hidden">
         <Header 
           currentProject={currentProject}
           projects={projects}
