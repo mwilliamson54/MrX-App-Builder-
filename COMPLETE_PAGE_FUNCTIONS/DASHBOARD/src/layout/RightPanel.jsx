@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, FileText, X } from 'lucide-react';
-import { Input } from '../ui';
+import { Input } from '../components/ui';
 import { FileTreeItem } from '../components/file-explorer';
 import { LogViewer } from '../components/logs';
 import { ArtifactList } from '../components/artifacts';
