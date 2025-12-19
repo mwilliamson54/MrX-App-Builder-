@@ -5,7 +5,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 
 // ============================================================================
-// CHAT PANEL (CENTER PANEL) COMPONENT
+// CHAT PANEL (CENTER PANEL) COMPONENT - MOBILE RESPONSIVE
 // ============================================================================
 
 export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, hasProject }) => {
@@ -18,12 +18,12 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
   if (!hasProject) {
     return (
       <div className="flex-1 flex flex-col bg-gray-950">
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center text-gray-500 max-w-md px-6">
-            <MessageSquare size={64} className="mb-4 opacity-20 mx-auto" />
-            <p className="text-lg mb-2">No Project Selected</p>
-            <p className="text-sm mb-4">Create a new project to get started with MrX Builder</p>
-            <p className="text-xs text-gray-600">Click the + button in the header to create your first project</p>
+            <MessageSquare size={48} className="mb-4 opacity-20 mx-auto md:w-16 md:h-16" />
+            <p className="text-base md:text-lg mb-2">No Project Selected</p>
+            <p className="text-xs md:text-sm mb-4">Create a new project to get started with MrX Builder</p>
+            <p className="text-xs text-gray-600">Click the menu icon to create your first project</p>
           </div>
         </div>
       </div>
@@ -33,11 +33,11 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
   if (!hasActiveChat) {
     return (
       <div className="flex-1 flex flex-col bg-gray-950">
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center text-gray-500">
-            <MessageSquare size={64} className="mb-4 opacity-20 mx-auto" />
-            <p className="text-lg mb-2">No chat selected</p>
-            <p className="text-sm">Create a new chat to get started</p>
+            <MessageSquare size={48} className="mb-4 opacity-20 mx-auto md:w-16 md:h-16" />
+            <p className="text-base md:text-lg mb-2">No chat selected</p>
+            <p className="text-xs md:text-sm">Open the chats menu to create or select a chat</p>
           </div>
         </div>
       </div>
@@ -46,12 +46,13 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
 
   return (
     <div className="flex-1 flex flex-col bg-gray-950">
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <MessageSquare size={64} className="mb-4 opacity-20" />
-            <p className="text-lg">Start a conversation</p>
-            <p className="text-sm">Ask me to build features, fix bugs, or analyze code</p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4">
+            <MessageSquare size={48} className="mb-4 opacity-20 md:w-16 md:h-16" />
+            <p className="text-base md:text-lg">Start a conversation</p>
+            <p className="text-xs md:text-sm text-center">Ask me to build features, fix bugs, or analyze code</p>
           </div>
         ) : (
           messages.map((msg, idx) => <ChatMessage key={idx} message={msg} />)
@@ -59,14 +60,20 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-gray-800 p-4 bg-gray-900">
-        <div className="flex gap-2 mb-4">
-          <Button size="sm" variant="secondary" icon={Play}>Build APK</Button>
-          <Button size="sm" variant="secondary" icon={Code}>Apply Patch</Button>
-          <Button size="sm" variant="secondary" icon={FileText}>Analyze Code</Button>
-        </div>
+      {/* Quick Actions - Hidden on small mobile, shown on tablet+ */}
+      <div className="hidden sm:flex border-t border-gray-800 p-3 md:p-4 bg-gray-900 gap-2 overflow-x-auto">
+        <Button size="sm" variant="secondary" icon={Play} className="whitespace-nowrap">
+          Build APK
+        </Button>
+        <Button size="sm" variant="secondary" icon={Code} className="whitespace-nowrap">
+          Apply Patch
+        </Button>
+        <Button size="sm" variant="secondary" icon={FileText} className="whitespace-nowrap">
+          Analyze Code
+        </Button>
       </div>
 
+      {/* Chat Input */}
       <ChatInput onSend={onSendMessage} isLoading={isLoading} />
     </div>
   );

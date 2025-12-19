@@ -6,7 +6,7 @@ import { ChatPanel } from '../components/chat';
 import { CreateProjectModal } from '../components/projects';
 
 // ============================================================================
-// DASHBOARD PAGE COMPONENT
+// DASHBOARD PAGE COMPONENT - FIXED PROJECT HANDLING
 // ============================================================================
 
 export const Dashboard = ({ auth, theme, toggleTheme }) => {
@@ -52,55 +52,80 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
     }
   }, [currentChat]);
 
-  // Helper function to normalize project (add id field from projectId)
+  // FIXED: Better project normalization with validation
   const normalizeProject = (project) => {
     if (!project) return null;
-    // If project already has id, return as is
-    if (project.id) return project;
-    // Otherwise, add id field from projectId
+    
+    // Ensure we have a valid projectId
+    const projectId = project.projectId || project.id;
+    if (!projectId || projectId.trim() === '') {
+      console.warn('⚠️ Invalid project - missing ID:', project);
+      return null;
+    }
+    
+    // Ensure we have a valid name
+    const name = project.name || projectId;
+    if (!name || name.trim() === '') {
+      console.warn('⚠️ Invalid project - missing name:', project);
+      return null;
+    }
+    
     return {
       ...project,
-      id: project.projectId || project.id
+      id: projectId,
+      projectId: projectId,
+      name: name.trim()
     };
   };
 
-  // Load functions
+  // FIXED: Filter out invalid projects and normalize
   const loadProjects = async () => {
     try {
       const projectsData = await api.getProjects();
-      console.log('✅ Projects loaded:', projectsData);
+      console.log('✅ Raw projects loaded:', projectsData);
       
-      // Normalize projects to ensure they have an id field
+      // Normalize and filter out invalid projects
       const normalizedProjects = Array.isArray(projectsData) 
-        ? projectsData.map(normalizeProject)
+        ? projectsData
+            .map(normalizeProject)
+            .filter(p => p !== null) // Remove invalid projects
         : [];
       
+      console.log('✅ Normalized projects:', normalizedProjects);
+      
       setProjects(normalizedProjects);
+      
       if (normalizedProjects.length > 0) {
         setCurrentProject(normalizedProjects[0]);
         console.log('✅ Current project set to:', normalizedProjects[0]);
       } else {
-        console.warn('⚠️ No projects found - user should create one');
+        console.warn('⚠️ No valid projects found');
         setCurrentProject(null);
-        // Show create project modal automatically if no projects
         setShowCreateProjectModal(true);
       }
     } catch (error) {
       console.error('❌ Failed to load projects:', error);
       setProjects([]);
       setCurrentProject(null);
-      // Show create project modal on error too
       setShowCreateProjectModal(true);
     }
   };
 
-  // Helper function to normalize chat (add id field from chatId)
+  // FIXED: Better chat normalization
   const normalizeChat = (chat) => {
     if (!chat) return null;
-    if (chat.id) return chat;
+    
+    const chatId = chat.chatId || chat.id;
+    if (!chatId || chatId.trim() === '') {
+      console.warn('⚠️ Invalid chat - missing ID:', chat);
+      return null;
+    }
+    
     return {
       ...chat,
-      id: chat.chatId || chat.id
+      id: chatId,
+      chatId: chatId,
+      title: chat.title || 'Untitled Chat'
     };
   };
 
@@ -109,22 +134,21 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
       const chatsData = await api.getChats(currentProject.id);
       console.log('Loaded chats:', chatsData);
 
-      // Normalize chats to ensure they have an id field
       const normalizedChats = Array.isArray(chatsData)
-        ? chatsData.map(normalizeChat)
+        ? chatsData
+            .map(normalizeChat)
+            .filter(c => c !== null)
         : [];
       
       setChats(normalizedChats);
       if (normalizedChats.length > 0) {
         setCurrentChat(normalizedChats[0]);
       } else {
-        // No chats exist - user needs to create one manually
         console.log('No chats found, user should create one');
         setCurrentChat(null);
       }
     } catch (error) {
       console.error('Failed to load chats:', error);
-      // Don't set mock chats - let user know there's an issue
       setChats([]);
       setCurrentChat(null);
     }
@@ -334,14 +358,10 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
       
       console.log('✅ Chat created successfully:', newChatData);
       
-      // Backend should return the chat object with an id
       const rawChat = newChatData.chat || newChatData;
-
-      // Normalize chat to ensure it has an id field
       const newChat = normalizeChat(rawChat);
       
-      if (!newChat || (!newChat.id && !newChat.chatId)) {
-        console.error('❌ Invalid chat response:', newChatData);
+      if (!newChat) {
         throw new Error('Invalid chat response from server - missing chat ID');
       }
       
@@ -350,20 +370,8 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
       setCurrentChat(newChat);
       setMessages([]);
     } catch (error) {
-      console.error('❌ Failed to create chat:', {
-        error: error.message,
-        projectId: currentProject?.id,
-        stack: error.stack
-      });
-      
-      // Show detailed error to user
-      const errorMsg = error.message.includes('internal error') 
-        ? 'Server error: The backend encountered an issue.\n\nPossible causes:\n• Database connection issue\n• Invalid project configuration\n• Missing required fields\n\nCheck backend logs for details.'
-        : `Failed to create chat: ${error.message}`;
-        
-      alert(errorMsg);
-      
-      // Don't create mock chats - they won't work with the backend
+      console.error('❌ Failed to create chat:', error);
+      alert(`Failed to create chat: ${error.message}`);
       setCurrentChat(null);
     } finally {
       setIsCreatingChat(false);
@@ -372,7 +380,9 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
 
   const handleChatSelect = (chatId) => {
     const chat = chats.find(c => c.id === chatId);
-    setCurrentChat(chat);
+    if (chat) {
+      setCurrentChat(chat);
+    }
   };
 
   const handleFileSelect = async (path) => {
@@ -390,52 +400,64 @@ export const Dashboard = ({ auth, theme, toggleTheme }) => {
     }
   };
 
-  // Project management
+  // FIXED: Better project creation with validation
   const handleCreateProject = async (projectData) => {
     console.log('🔵 Creating new project:', projectData);
     setIsCreatingProject(true);
     
     try {
+      // Validate inputs before sending
+      if (!projectData.name || projectData.name.trim() === '') {
+        throw new Error('Project name is required');
+      }
+      
+      if (!projectData.repoUrl || projectData.repoUrl.trim() === '') {
+        throw new Error('Repository URL is required');
+      }
+      
       const newProjectData = await api.createProject({
-        name: projectData.name,
-        repoUrl: projectData.repoUrl,
-        description: projectData.description || ''
+        name: projectData.name.trim(),
+        repoUrl: projectData.repoUrl.trim(),
+        description: projectData.description?.trim() || ''
       });
       
       console.log('✅ Project created successfully:', newProjectData);
       
-      // Backend should return the project object
       const rawProject = newProjectData.project || newProjectData;
-      
-      // Normalize the project to ensure it has an id field
       const newProject = normalizeProject(rawProject);
       
-      if (!newProject || (!newProject.id && !newProject.projectId)) {
-        console.error('❌ Invalid project response:', newProjectData);
+      if (!newProject) {
         throw new Error('Invalid project response from server');
       }
       
-      // Add to projects list and set as current
       setProjects(prev => [newProject, ...prev]);
       setCurrentProject(newProject);
       
       console.log('✅ Project set as current:', newProject);
       
-      return true; // Success
+      return true;
     } catch (error) {
       console.error('❌ Failed to create project:', error);
-      alert(`Failed to create project: ${error.message}\n\nPlease check your backend logs.`);
-      return false; // Failure
+      alert(`Failed to create project: ${error.message}`);
+      return false;
     } finally {
       setIsCreatingProject(false);
     }
   };
 
+  // FIXED: Safer project change with validation
   const handleProjectChange = (projectId) => {
+    if (!projectId || projectId.trim() === '') {
+      console.warn('⚠️ Invalid projectId provided');
+      return;
+    }
+    
     const project = projects.find(p => p.id === projectId);
     if (project) {
       setCurrentProject(project);
       console.log('✅ Switched to project:', project);
+    } else {
+      console.warn('⚠️ Project not found:', projectId);
     }
   };
 

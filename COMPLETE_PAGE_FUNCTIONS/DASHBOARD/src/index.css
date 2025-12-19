@@ -21,6 +21,8 @@
   body {
     @apply bg-gray-950 text-gray-100;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    /* Prevent pull-to-refresh on mobile */
+    overscroll-behavior-y: contain;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -29,10 +31,14 @@
 
   button {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950;
+    /* Prevent tap highlight on mobile */
+    -webkit-tap-highlight-color: transparent;
   }
 
   input, textarea, select {
     @apply focus:outline-none;
+    /* Better mobile input handling */
+    font-size: 16px; /* Prevents zoom on iOS */
   }
 }
 
@@ -88,29 +94,18 @@
     @apply bg-gray-700/50 text-gray-300 border border-gray-700;
   }
 
-  /* Syntax highlighting base */
-  .syntax-highlight {
-    @apply font-mono text-sm;
+  /* Mobile-optimized touch targets */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
   }
 
-  .syntax-keyword {
-    @apply text-purple-400;
+  /* Safe area padding for iOS notch */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
   }
 
-  .syntax-string {
-    @apply text-green-400;
-  }
-
-  .syntax-comment {
-    @apply text-gray-500 italic;
-  }
-
-  .syntax-function {
-    @apply text-blue-400;
-  }
-
-  .syntax-variable {
-    @apply text-cyan-400;
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* Loading skeleton */
@@ -187,15 +182,6 @@
     height: 30px;
     background: linear-gradient(transparent, rgb(3 7 18));
   }
-
-  /* Aspect ratio utilities */
-  .aspect-video {
-    aspect-ratio: 16 / 9;
-  }
-
-  .aspect-square {
-    aspect-ratio: 1 / 1;
-  }
 }
 
 /* Animations */
@@ -243,7 +229,7 @@
 
 @keyframes scale-in {
   from {
-    transform: scale(0.9);
+    transform: scale(0.95);
     opacity: 0;
   }
   to {
@@ -273,14 +259,35 @@
   animation: scale-in 0.2s ease-out;
 }
 
-/* Print styles */
-@media print {
-  body {
-    @apply bg-white text-black;
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  /* Larger touch targets on mobile */
+  button, a {
+    @apply min-h-[44px];
   }
 
-  .no-print {
-    display: none !important;
+  /* Better input sizing */
+  input, textarea, select {
+    @apply text-base;
+  }
+
+  /* Prevent iOS Safari rubber band effect */
+  body {
+    position: fixed;
+    width: 100%;
+  }
+
+  /* Mobile-optimized scrolling */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Tablet improvements */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Optimize for tablet viewport */
+  .message-bubble {
+    @apply max-w-2xl;
   }
 }
 
@@ -296,4 +303,15 @@
 /* Focus visible */
 :focus-visible {
   @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-950;
+}
+
+/* Print styles */
+@media print {
+  body {
+    @apply bg-white text-black;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }
