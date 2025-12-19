@@ -17,7 +17,7 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
 
   if (!hasProject) {
     return (
-      <div className="flex-1 flex flex-col bg-gray-950 h-full">
+      <div className="flex-1 flex flex-col bg-gray-950">
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center text-gray-500 max-w-md px-6">
             <MessageSquare size={48} className="mb-4 opacity-20 mx-auto md:w-16 md:h-16" />
@@ -32,7 +32,7 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
 
   if (!hasActiveChat) {
     return (
-      <div className="flex-1 flex flex-col bg-gray-950 h-full">
+      <div className="flex-1 flex flex-col bg-gray-950">
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center text-gray-500">
             <MessageSquare size={48} className="mb-4 opacity-20 mx-auto md:w-16 md:h-16" />
@@ -45,9 +45,9 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-950 h-full overflow-hidden">
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
+    <div className="flex-1 flex flex-col bg-gray-950 relative">
+      {/* Messages Area - with bottom padding for input */}
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 pb-32 lg:pb-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4">
             <MessageSquare size={48} className="mb-4 opacity-20 md:w-16 md:h-16" />
@@ -61,7 +61,7 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
       </div>
 
       {/* Quick Actions - Hidden on small mobile, shown on tablet+ */}
-      <div className="hidden sm:flex border-t border-gray-800 p-3 md:p-4 bg-gray-900 gap-2 overflow-x-auto flex-shrink-0">
+      <div className="hidden sm:flex border-t border-gray-800 p-3 md:p-4 bg-gray-900 gap-2 overflow-x-auto">
         <Button size="sm" variant="secondary" icon={Play} className="whitespace-nowrap">
           Build APK
         </Button>
@@ -73,8 +73,8 @@ export const ChatPanel = ({ messages, onSendMessage, isLoading, hasActiveChat, h
         </Button>
       </div>
 
-      {/* Chat Input - Fixed at bottom */}
-      <div className="flex-shrink-0">
+      {/* Chat Input - Fixed at bottom on mobile, normal on desktop */}
+      <div className="lg:relative fixed bottom-0 left-0 right-0 z-30 lg:z-0">
         <ChatInput onSend={onSendMessage} isLoading={isLoading} />
       </div>
     </div>

@@ -34,7 +34,7 @@ export const ChatInput = ({ onSend, isLoading }) => {
   };
 
   return (
-    <div className="border-t border-gray-800 bg-gray-900">
+    <div className="border-t border-gray-800 bg-gray-900 shadow-lg">
       {/* Settings Bar - Collapsible on mobile */}
       <div className={`px-3 md:px-4 pt-3 md:pt-4 transition-all ${showSettings ? 'block' : 'hidden md:block'}`}>
         <div className="flex items-center gap-2 flex-wrap">
@@ -62,7 +62,7 @@ export const ChatInput = ({ onSend, isLoading }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-3 md:p-4 flex gap-2">
+      <div className="p-3 md:p-4 flex gap-2 safe-area-bottom">
         {/* Settings Toggle - Mobile Only */}
         <button
           onClick={() => setShowSettings(!showSettings)}
@@ -76,8 +76,8 @@ export const ChatInput = ({ onSend, isLoading }) => {
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Type your message... (Enter to send)"
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 md:px-4 py-2 md:py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm md:text-base"
-          rows={window.innerWidth < 768 ? 2 : 3}
+          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 md:px-4 py-2 md:py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm md:text-base min-h-[44px]"
+          rows={2}
         />
         
         <Button 
@@ -85,7 +85,7 @@ export const ChatInput = ({ onSend, isLoading }) => {
           disabled={isLoading || !message.trim()}
           icon={Send}
           className="self-end whitespace-nowrap"
-          size={window.innerWidth < 768 ? 'sm' : 'md'}
+          size="md"
         >
           <span className="hidden sm:inline">Send</span>
         </Button>
