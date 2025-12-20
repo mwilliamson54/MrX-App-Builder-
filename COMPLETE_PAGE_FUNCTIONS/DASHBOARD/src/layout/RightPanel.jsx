@@ -68,10 +68,10 @@ export const RightPanel = ({ activeTab, fileTree, selectedFile, logs, artifacts,
   // Mobile Floating Button & Panel
   const MobilePanel = () => (
     <>
-      {/* Floating Files Button */}
+      {/* Floating Files Button - SHIFTED UP */}
       <button
         onClick={() => setShowMobilePanel(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-40 bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg transition-all"
+        className="lg:hidden fixed bottom-24 right-4 z-40 bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg transition-all"
       >
         <FileText size={24} />
       </button>

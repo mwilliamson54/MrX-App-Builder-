@@ -112,10 +112,10 @@ export const LeftSidebar = ({
   // Mobile Floating Button & Sidebar
   const MobileSidebar = () => (
     <>
-      {/* Floating Chat Button */}
+      {/* Floating Chat Button - SHIFTED UP */}
       <button
         onClick={() => setShowMobileSidebar(true)}
-        className="md:hidden fixed bottom-4 left-4 z-40 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all"
+        className="md:hidden fixed bottom-24 left-4 z-40 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all"
       >
         <MessageSquare size={24} />
         {chats.length > 0 && (
