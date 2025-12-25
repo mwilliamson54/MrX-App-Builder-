@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer
-from typing import List, Optional
+from typing import List, Optional, Any
 import numpy as np
 from config.settings import settings
 from utils.logger import logger
