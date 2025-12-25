@@ -1,4 +1,4 @@
-import tree_sitter_languages as tsl
+from tree_sitter_languages import get_parser
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from utils.logger import logger
@@ -8,15 +8,16 @@ class TreeSitterParser:
     
     def __init__(self):
         self.parsers = {}
+        self.languages = {}
         self._init_parsers()
         
     def _init_parsers(self):
         """Initialize parsers for supported languages"""
         try:
-            # Get language parsers
-            self.parsers['java'] = tsl.get_language('java')
-            self.parsers['kotlin'] = tsl.get_language('kotlin')
-            self.parsers['xml'] = tsl.get_language('xml')
+            # Store language identifiers (parsers created on-demand)
+            self.languages['java'] = 'java'
+            self.languages['kotlin'] = 'kotlin'
+            self.languages['xml'] = 'xml'
             
             logger.info("Tree-Sitter parsers initialized")
             
@@ -26,9 +27,9 @@ class TreeSitterParser:
             
     def get_parser(self, language: str):
         """Get parser for specified language"""
-        if language not in self.parsers:
+        if language not in self.languages:
             raise ValueError(f"Unsupported language: {language}")
-        return self.parsers[language]
+        return get_parser(language)
         
     def parse_file(self, file_path: Path, language: str) -> Optional[Any]:
         """
@@ -47,7 +48,7 @@ class TreeSitterParser:
                 content = f.read()
                 
             # Get parser
-            parser = tsl.get_parser(language)
+            parser = get_parser(language)
             
             # Parse
             tree = parser.parse(content)
