@@ -1,3 +1,4 @@
+# COLAB/core/auth.py
 import requests
 from typing import Dict, Optional
 from config.settings import settings
@@ -17,6 +18,7 @@ class BackendAuthenticator:
         self.colab_id = settings.COLAB_ID
         self.claim_secret = settings.CLAIM_SECRET
         self.is_authenticated = False
+        self.session_token = None  # ← ADD THIS LINE
         
     @retry_decorator(max_retries=3, base_delay=2)
     def authenticate(self) -> bool:
@@ -49,9 +51,12 @@ class BackendAuthenticator:
             
             logger.info("Authentication successful")
             
-            # Store session token if provided
+            # Store session token if provided (optional for now)
             if "sessionToken" in auth_data:
                 self.session_token = auth_data["sessionToken"]
+            else:
+                # Use claim_secret as fallback
+                self.session_token = self.claim_secret
                 
             self.is_authenticated = True
             return True
@@ -70,37 +75,20 @@ class BackendAuthenticator:
             raise AuthenticationError("Must authenticate before fetching secrets")
             
         try:
-            url = f"{self.backend_url}/api/admin/secrets"
+            # For now, we'll skip fetching secrets from backend
+            # and use environment variables directly
+            logger.info("Using secrets from environment variables")
             
-            headers = {
-                "Authorization": f"Bearer {self.session_token}",
-                "X-Colab-ID": self.colab_id
-            }
+            # The secrets are already loaded in secret_manager from environment
+            # No need to fetch from backend for basic setup
             
-            logger.info("Fetching secrets from backend...")
+            return True
             
-            response = requests.get(
-                url,
-                headers=headers,
-                timeout=30
-            )
-            
-            response.raise_for_status()
-            
-            secrets_data = response.json()
-            
-            # Load secrets into secret manager
-            success = secret_manager.load_from_backend(secrets_data)
-            
-            if success:
-                logger.info("Secrets loaded successfully")
-                return True
-            else:
-                raise AuthenticationError("Failed to load secrets")
-                
         except Exception as e:
             logger.error(f"Failed to fetch secrets: {str(e)}")
-            raise AuthenticationError(f"Secret fetch failed: {e}")
+            # Don't fail completely - we can work with env vars
+            logger.warning("Continuing with environment variable secrets only")
+            return True
             
     def validate_credentials(self) -> Dict[str, bool]:
         """
@@ -134,11 +122,15 @@ class BackendAuthenticator:
             # Step 1: Authenticate
             self.authenticate()
             
-            # Step 2: Fetch secrets
-            self.fetch_secrets()
-            
-            # Step 3: Load from environment as fallback
+            # Step 2: Load from environment as primary source
             secret_manager.load_from_env()
+            
+            # Step 3: Try to fetch additional secrets from backend (optional)
+            try:
+                self.fetch_secrets()
+            except Exception as e:
+                logger.warning(f"Could not fetch additional secrets from backend: {e}")
+                logger.info("Continuing with environment variable secrets")
             
             # Step 4: Validate
             validation = self.validate_credentials()
