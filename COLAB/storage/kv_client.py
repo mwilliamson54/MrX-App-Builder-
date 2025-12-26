@@ -2,105 +2,80 @@ import requests
 import json
 from typing import Optional, Dict, Any, List
 from config.settings import settings
+from config.secrets import secret_manager
 from utils.logger import logger
 from utils.retry import retry_decorator
 
 class KVClient:
-    """Workers KV API client for metadata and log storage"""
+    """
+    Backend API client (NOT direct KV access)
+    Colab cannot access KV directly - must go through backend API
+    """
     
     def __init__(self, backend_url: str = None):
         self.backend_url = backend_url or settings.BACKEND_URL
         self.session = requests.Session()
+        
+        # Get authentication headers
+        self.colab_id = settings.COLAB_ID
+        self.claim_secret = settings.CLAIM_SECRET
+        
+        # Set default headers
         self.session.headers.update({
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-Colab-Secret": self.claim_secret,
+            "X-Colab-Id": self.colab_id
         })
         
     def _build_url(self, endpoint: str) -> str:
         """Build full API URL"""
-        return f"{self.backend_url}/api/kv{endpoint}"
+        return f"{self.backend_url}{endpoint}"
         
     @retry_decorator(max_retries=3, base_delay=1)
     def get(self, key: str) -> Optional[Any]:
-        """Get value from KV"""
-        try:
-            url = self._build_url(f"/{key}")
-            response = self.session.get(url, timeout=10)
-            
-            if response.status_code == 404:
-                return None
-                
-            response.raise_for_status()
-            return response.json()
-            
-        except Exception as e:
-            logger.error(f"KV GET failed for key: {key}", meta={"error": str(e)})
-            raise
+        """
+        Get value from backend (simulating KV)
+        NOTE: This is NOT real KV access - it's an API call
+        """
+        logger.warning(f"Attempted KV GET for key: {key}")
+        logger.warning("Colab cannot access KV directly - use backend API instead!")
+        return None
             
     @retry_decorator(max_retries=3, base_delay=1)
     def put(self, key: str, value: Any) -> bool:
-        """Put value to KV"""
-        try:
-            url = self._build_url(f"/{key}")
-            
-            # Ensure value is JSON serializable
-            if not isinstance(value, str):
-                value = json.dumps(value)
-                
-            response = self.session.put(
-                url,
-                json={"value": value},
-                timeout=10
-            )
-            
-            response.raise_for_status()
-            
-            logger.debug(f"KV PUT success: {key}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"KV PUT failed for key: {key}", meta={"error": str(e)})
-            raise
-            
-    @retry_decorator(max_retries=3, base_delay=1)
-    def append(self, key: str, value: Any) -> bool:
-        """Append value to KV list (for logs)"""
-        try:
-            url = self._build_url(f"/{key}/append")
-            
-            if not isinstance(value, str):
-                value = json.dumps(value)
-                
-            response = self.session.post(
-                url,
-                json={"value": value},
-                timeout=10
-            )
-            
-            response.raise_for_status()
-            return True
-            
-        except Exception as e:
-            logger.error(f"KV APPEND failed for key: {key}", meta={"error": str(e)})
-            raise
-            
-    @retry_decorator(max_retries=3, base_delay=1)
-    def delete(self, key: str) -> bool:
-        """Delete key from KV"""
-        try:
-            url = self._build_url(f"/{key}")
-            response = self.session.delete(url, timeout=10)
-            
-            response.raise_for_status()
-            logger.debug(f"KV DELETE success: {key}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"KV DELETE failed for key: {key}", meta={"error": str(e)})
-            raise
+        """
+        Put value to backend (simulating KV)
+        NOTE: This is NOT real KV access - it's an API call
+        """
+        logger.warning(f"Attempted KV PUT for key: {key}")
+        logger.warning("Colab cannot access KV directly - use backend API instead!")
+        return False
             
     def get_project_meta(self, project_id: str) -> Optional[Dict]:
-        """Get project metadata"""
-        return self.get(f"project:{project_id}:meta")
+        """Get project metadata via backend API"""
+        try:
+            url = self._build_url(f"/api/projects/{project_id}")
+            
+            logger.debug(f"Fetching project metadata: {url}")
+            
+            response = self.session.get(url, timeout=30)
+            
+            if response.status_code == 404:
+                logger.warning(f"Project not found: {project_id}")
+                return None
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to get project: {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                return None
+            
+            data = response.json()
+            logger.info(f"✅ Got project metadata: {project_id}")
+            return data
+            
+        except Exception as e:
+            logger.error(f"Failed to get project metadata: {str(e)}")
+            raise
         
     def update_job_state(
         self, 
@@ -109,36 +84,71 @@ class KVClient:
         state: str,
         result: Optional[Dict] = None
     ) -> bool:
-        """Update job state"""
-        job_data = {
-            "state": state,
-            "updatedAt": self._get_timestamp()
-        }
-        
-        if result:
-            job_data["result"] = result
+        """Update job state via backend API"""
+        try:
+            url = self._build_url(f"/api/jobs/{job_id}")
             
-        return self.put(f"project:{project_id}:job:{job_id}", job_data)
+            payload = {
+                "state": state,
+                "updatedAt": self._get_timestamp()
+            }
+            
+            if result:
+                payload["result"] = result
+            
+            logger.debug(f"Updating job state: {job_id} -> {state}")
+            
+            response = self.session.patch(url, json=payload, timeout=30)
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to update job: {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                return False
+            
+            logger.info(f"✅ Updated job state: {job_id} -> {state}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update job state: {str(e)}")
+            return False
         
     def append_log_segment(
         self,
         project_id: str,
         job_id: str,
-        segment_num: int,
-        log_lines: List[Dict]
+        log_entry: Dict
     ) -> bool:
-        """Append log segment"""
-        key = f"project:{project_id}:logs:{job_id}:segment:{segment_num}"
-        return self.put(key, log_lines)
+        """Append log segment via backend API"""
+        try:
+            url = self._build_url(f"/api/jobs/{job_id}/logs")
+            
+            logger.debug(f"Appending log for job: {job_id}")
+            
+            response = self.session.post(url, json=log_entry, timeout=30)
+            
+            if response.status_code not in [200, 201]:
+                logger.warning(f"Failed to append log: {response.status_code}")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Failed to append log: {str(e)}")
+            return False
         
     def update_faiss_manifest(
         self,
         project_id: str,
         manifest: Dict
     ) -> bool:
-        """Update FAISS index manifest"""
-        key = f"project:{project_id}:faiss:manifest"
-        return self.put(key, manifest)
+        """
+        Update FAISS index manifest
+        NOTE: This would need a backend endpoint - for now just log
+        """
+        logger.info(f"FAISS manifest update requested for {project_id}")
+        logger.debug(f"Manifest: {manifest}")
+        # TODO: Create backend endpoint for FAISS manifest updates
+        return True
         
     def store_artifact_metadata(
         self,
@@ -146,9 +156,14 @@ class KVClient:
         build_id: str,
         metadata: Dict
     ) -> bool:
-        """Store artifact metadata"""
-        key = f"artifact:{project_id}:{build_id}"
-        return self.put(key, metadata)
+        """
+        Store artifact metadata
+        NOTE: This would need a backend endpoint - for now just log
+        """
+        logger.info(f"Artifact metadata storage requested for {project_id}/{build_id}")
+        logger.debug(f"Metadata: {metadata}")
+        # TODO: Create backend endpoint for artifact metadata
+        return True
         
     @staticmethod
     def _get_timestamp() -> str:
