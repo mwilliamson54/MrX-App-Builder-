@@ -10,7 +10,7 @@ class Job:
     """Job data model"""
     
     def __init__(self, data: Dict[str, Any]):
-        self.id = data["id"]
+        self.id = data["jobId"]
         self.project_id = data["projectId"]
         self.type = data["type"]
         self.state = data.get("state", "pending")
@@ -49,53 +49,67 @@ class JobManager:
         try:
             url = f"{self.backend_url}/api/jobs/claim"
             
-            payload = {
-                "colabId": self.colab_id,
-                "claimSecret": self.claim_secret
+            # FIXED: Send credentials in headers instead of body
+            headers = {
+                "Content-Type": "application/json",
+                "X-Colab-Secret": self.claim_secret,
+                "X-Colab-Id": self.colab_id
             }
             
             response = self.session.post(
                 url,
-                json=payload,
+                headers=headers,
                 timeout=30
             )
             
             if response.status_code == 204:
                 # No jobs available
                 return None
+            
+            if response.status_code == 200:
+                job_data = response.json()
                 
-            response.raise_for_status()
-            
-            job_data = response.json()
-            
-            if not job_data:
-                return None
+                # Check if job is present
+                if not job_data or job_data.get("job") is None:
+                    return None
                 
-            job = Job(job_data)
-            job.claimed_at = datetime.utcnow().isoformat() + "Z"
+                # Extract job from response
+                job_info = job_data["job"]
+                job = Job(job_info)
+                job.claimed_at = datetime.utcnow().isoformat() + "Z"
+                
+                self.current_job = job
+                
+                logger.info(
+                    f"✅ Claimed job: {job.id}",
+                    meta={
+                        "job_id": job.id,
+                        "project_id": job.project_id,
+                        "type": job.type
+                    }
+                )
+                
+                # Immediately update state to 'running'
+                self.update_job_state("running")
+                
+                return job
             
-            self.current_job = job
-            
-            logger.info(
-                f"Claimed job: {job.id}",
-                meta={
-                    "job_id": job.id,
-                    "project_id": job.project_id,
-                    "type": job.type
-                }
-            )
-            
-            # Immediately update state to 'claimed'
-            self.update_job_state("claimed")
-            
-            return job
-            
+            # Handle other status codes
+            logger.error(f"Unexpected status code: {response.status_code}")
+            logger.error(f"Response: {response.text}")
+            return None
+                
         except requests.exceptions.RequestException as e:
-            logger.debug(f"Job claim failed (will retry): {str(e)}")
+            logger.error(f"❌ Job claim request failed: {str(e)}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response status: {e.response.status_code}")
+                logger.error(f"Response body: {e.response.text}")
             return None
             
         except Exception as e:
-            logger.error(f"Unexpected error claiming job: {str(e)}")
+            logger.error(f"❌ Unexpected error claiming job: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
             
     @retry_decorator(max_retries=3, base_delay=1)
@@ -113,6 +127,13 @@ class JobManager:
         try:
             url = f"{self.backend_url}/api/jobs/{self.current_job.id}"
             
+            # FIXED: Send credentials in headers
+            headers = {
+                "Content-Type": "application/json",
+                "X-Colab-Secret": self.claim_secret,
+                "X-Colab-Id": self.colab_id
+            }
+            
             payload = {
                 "state": state,
                 "updatedAt": datetime.utcnow().isoformat() + "Z"
@@ -126,6 +147,7 @@ class JobManager:
                 
             response = self.session.patch(
                 url,
+                headers=headers,
                 json=payload,
                 timeout=30
             )
@@ -135,14 +157,16 @@ class JobManager:
             self.current_job.state = state
             
             logger.info(
-                f"Job state updated: {state}",
+                f"✅ Job state updated: {state}",
                 meta={"job_id": self.current_job.id}
             )
             
             return True
             
         except Exception as e:
-            logger.error(f"Failed to update job state: {str(e)}")
+            logger.error(f"❌ Failed to update job state: {str(e)}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response: {e.response.text}")
             return False
             
     def mark_running(self) -> bool:
@@ -173,36 +197,54 @@ class JobManager:
         """
         interval = interval or settings.POLL_INTERVAL
         
-        logger.info(f"Starting job polling loop (interval: {interval}s)")
+        logger.info(f"🚀 Starting job polling loop (interval: {interval}s)")
+        logger.info(f"Backend: {self.backend_url}")
+        logger.info(f"Colab ID: {self.colab_id}")
+        
+        consecutive_failures = 0
         
         while True:
             try:
                 job = self.claim_job()
                 
                 if job:
+                    consecutive_failures = 0
+                    logger.info(f"📋 Executing job: {job.id}")
+                    
                     # Execute callback with job
                     try:
                         callback(job)
+                        logger.info(f"✅ Job {job.id} completed successfully")
                     except Exception as e:
                         logger.error(
-                            f"Job execution failed: {str(e)}",
+                            f"❌ Job execution failed: {str(e)}",
                             meta={"job_id": job.id}
                         )
+                        import traceback
+                        logger.error(traceback.format_exc())
                         self.mark_failed(str(e))
                     finally:
                         self.release_job()
                 else:
-                    # No job available, wait
-                    logger.debug("No jobs available, waiting...")
+                    consecutive_failures += 1
+                    logger.debug(f"No jobs available (attempt {consecutive_failures})")
+                    
+                    # Alert on repeated failures
+                    if consecutive_failures == 10:
+                        logger.warning("⚠️ 10 consecutive empty polls - this is normal if no work to do")
+                    elif consecutive_failures % 100 == 0:
+                        logger.info(f"Still polling... ({consecutive_failures} attempts)")
                     
                 time.sleep(interval)
                 
             except KeyboardInterrupt:
-                logger.info("Polling loop interrupted")
+                logger.info("🛑 Polling loop interrupted by user")
                 break
                 
             except Exception as e:
-                logger.error(f"Error in polling loop: {str(e)}")
+                logger.error(f"❌ Error in polling loop: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
                 time.sleep(interval)
 
 # Global job manager instance
