@@ -28,7 +28,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
     
-    Logger.info('Colab authenticated successfully', { colabId });
+    Logger.info('✅ Colab authenticated successfully', { colabId });
     
     // Return success with optional session data
     return new Response(JSON.stringify({
