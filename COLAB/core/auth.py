@@ -18,7 +18,7 @@ class BackendAuthenticator:
         self.colab_id = settings.COLAB_ID
         self.claim_secret = settings.CLAIM_SECRET
         self.is_authenticated = False
-        self.session_token = None  # ← ADD THIS LINE
+        self.session_token = None
         
     @retry_decorator(max_retries=3, base_delay=2)
     def authenticate(self) -> bool:
@@ -34,7 +34,9 @@ class BackendAuthenticator:
                 "claimSecret": self.claim_secret
             }
             
-            logger.info("Authenticating with backend...")
+            logger.info("🔐 Authenticating with backend...")
+            logger.info(f"Backend URL: {self.backend_url}")
+            logger.info(f"Colab ID: {self.colab_id}")
             
             response = requests.post(
                 url,
@@ -44,14 +46,16 @@ class BackendAuthenticator:
             
             if response.status_code == 401:
                 raise AuthenticationError("Invalid claim secret")
-                
-            response.raise_for_status()
             
+            if response.status_code != 200:
+                raise AuthenticationError(f"Authentication failed with status {response.status_code}")
+                
             auth_data = response.json()
             
-            logger.info("Authentication successful")
+            logger.info("✅ Authentication successful")
+            logger.info(f"Response: {auth_data}")
             
-            # Store session token if provided (optional for now)
+            # Store session token if provided
             if "sessionToken" in auth_data:
                 self.session_token = auth_data["sessionToken"]
             else:
@@ -62,33 +66,8 @@ class BackendAuthenticator:
             return True
             
         except Exception as e:
-            logger.error(f"Authentication failed: {str(e)}")
+            logger.error(f"❌ Authentication failed: {str(e)}")
             raise AuthenticationError(f"Failed to authenticate: {e}")
-            
-    @retry_decorator(max_retries=3, base_delay=2)
-    def fetch_secrets(self) -> bool:
-        """
-        Fetch encrypted secrets from backend
-        Requires prior authentication
-        """
-        if not self.is_authenticated:
-            raise AuthenticationError("Must authenticate before fetching secrets")
-            
-        try:
-            # For now, we'll skip fetching secrets from backend
-            # and use environment variables directly
-            logger.info("Using secrets from environment variables")
-            
-            # The secrets are already loaded in secret_manager from environment
-            # No need to fetch from backend for basic setup
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to fetch secrets: {str(e)}")
-            # Don't fail completely - we can work with env vars
-            logger.warning("Continuing with environment variable secrets only")
-            return True
             
     def validate_credentials(self) -> Dict[str, bool]:
         """
@@ -97,58 +76,57 @@ class BackendAuthenticator:
         """
         validation = {
             "github_pat": secret_manager.has_secret("github_pat"),
-            "drive_credentials": secret_manager.has_secret("drive_credentials"),
-            "llm_configured": (
-                secret_manager.has_secret("llm_endpoint") or 
-                secret_manager.has_secret("openai_key")
-            )
+            "backend_connection": self.is_authenticated,
+            "claim_secret": bool(self.claim_secret)
         }
         
-        all_valid = all(validation.values())
-        
-        logger.info(
-            "Credential validation",
-            meta=validation
-        )
+        logger.info("📋 Credential validation:", meta=validation)
         
         return validation
         
     def setup_session(self) -> bool:
         """
-        Complete setup: authenticate + fetch secrets + validate
+        Complete setup: authenticate + load secrets + validate
         Returns True if all steps succeed
         """
         try:
+            logger.info("=" * 60)
+            logger.info("🚀 Starting Colab Agent Setup")
+            logger.info("=" * 60)
+            
             # Step 1: Authenticate
+            logger.info("Step 1/3: Authenticating with backend...")
             self.authenticate()
+            logger.info("✅ Authentication complete")
             
-            # Step 2: Load from environment as primary source
+            # Step 2: Load from environment
+            logger.info("Step 2/3: Loading secrets from environment...")
             secret_manager.load_from_env()
+            logger.info("✅ Secrets loaded")
             
-            # Step 3: Try to fetch additional secrets from backend (optional)
-            try:
-                self.fetch_secrets()
-            except Exception as e:
-                logger.warning(f"Could not fetch additional secrets from backend: {e}")
-                logger.info("Continuing with environment variable secrets")
-            
-            # Step 4: Validate
+            # Step 3: Validate
+            logger.info("Step 3/3: Validating credentials...")
             validation = self.validate_credentials()
             
             if not validation["github_pat"]:
-                raise AuthenticationError("GitHub PAT not available")
+                logger.warning("⚠️ GitHub PAT not available")
+                logger.warning("Some features may not work without GitHub access")
                 
-            if not validation["drive_credentials"]:
-                logger.warning("Google Drive credentials not available")
+            if not validation["backend_connection"]:
+                raise AuthenticationError("Backend connection not established")
                 
-            if not validation["llm_configured"]:
-                logger.warning("No LLM endpoint configured")
-                
-            logger.info("Session setup completed successfully")
+            if not validation["claim_secret"]:
+                raise AuthenticationError("Claim secret not configured")
+            
+            logger.info("=" * 60)
+            logger.info("✅ Session setup completed successfully")
+            logger.info("=" * 60)
             return True
             
         except Exception as e:
-            logger.error(f"Session setup failed: {str(e)}")
+            logger.error("=" * 60)
+            logger.error(f"❌ Session setup failed: {str(e)}")
+            logger.error("=" * 60)
             return False
 
 # Global authenticator instance
