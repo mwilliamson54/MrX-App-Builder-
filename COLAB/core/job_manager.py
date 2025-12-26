@@ -19,7 +19,6 @@ class Job:
         self.claimed_at = None
         
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary"""
         return {
             "id": self.id,
             "projectId": self.project_id,
@@ -49,12 +48,15 @@ class JobManager:
         try:
             url = f"{self.backend_url}/api/jobs/claim"
             
-            # FIXED: Send credentials in headers instead of body
+            # FIXED: Proper authentication headers
             headers = {
                 "Content-Type": "application/json",
                 "X-Colab-Secret": self.claim_secret,
                 "X-Colab-Id": self.colab_id
             }
+            
+            logger.debug(f"Attempting to claim job from {url}")
+            logger.debug(f"Headers: Colab-Id={self.colab_id}, Secret={'*' * 20}")
             
             response = self.session.post(
                 url,
@@ -62,43 +64,81 @@ class JobManager:
                 timeout=30
             )
             
+            logger.debug(f"Response status: {response.status_code}")
+            
+            # FIXED: Handle 204 (no jobs) correctly
             if response.status_code == 204:
-                # No jobs available
+                logger.debug("No jobs available (204)")
                 return None
             
+            # FIXED: Handle 200 with proper error checking
             if response.status_code == 200:
-                job_data = response.json()
-                
-                # Check if job is present
-                if not job_data or job_data.get("job") is None:
+                try:
+                    job_data = response.json()
+                    logger.debug(f"Response data: {job_data}")
+                    
+                    # FIXED: Check if job is actually present
+                    if not job_data:
+                        logger.debug("Empty response body")
+                        return None
+                    
+                    # FIXED: Handle both {job: {...}} and direct job object
+                    if "job" in job_data:
+                        job_info = job_data["job"]
+                        if job_info is None:
+                            logger.debug("Job field is null")
+                            return None
+                    else:
+                        # Response might be the job directly
+                        job_info = job_data
+                    
+                    # FIXED: Validate required fields
+                    required_fields = ["jobId", "projectId", "type"]
+                    for field in required_fields:
+                        if field not in job_info:
+                            logger.error(f"Missing required field: {field}")
+                            logger.error(f"Job data: {job_info}")
+                            return None
+                    
+                    job = Job(job_info)
+                    job.claimed_at = datetime.utcnow().isoformat() + "Z"
+                    
+                    self.current_job = job
+                    
+                    logger.info(
+                        f"✅ Claimed job: {job.id}",
+                        meta={
+                            "job_id": job.id,
+                            "project_id": job.project_id,
+                            "type": job.type
+                        }
+                    )
+                    
+                    # Immediately update state to 'running'
+                    self.update_job_state("running")
+                    
+                    return job
+                    
+                except Exception as e:
+                    logger.error(f"Failed to parse job response: {str(e)}")
+                    logger.error(f"Response text: {response.text}")
                     return None
-                
-                # Extract job from response
-                job_info = job_data["job"]
-                job = Job(job_info)
-                job.claimed_at = datetime.utcnow().isoformat() + "Z"
-                
-                self.current_job = job
-                
-                logger.info(
-                    f"✅ Claimed job: {job.id}",
-                    meta={
-                        "job_id": job.id,
-                        "project_id": job.project_id,
-                        "type": job.type
-                    }
-                )
-                
-                # Immediately update state to 'running'
-                self.update_job_state("running")
-                
-                return job
             
-            # Handle other status codes
+            # FIXED: Handle authentication errors
+            if response.status_code == 401:
+                logger.error("❌ Authentication failed - check COLAB_AGENT_SECRET")
+                logger.error("Response: " + response.text)
+                return None
+            
+            # Handle other errors
             logger.error(f"Unexpected status code: {response.status_code}")
             logger.error(f"Response: {response.text}")
             return None
                 
+        except requests.exceptions.Timeout:
+            logger.error("Request timeout while claiming job")
+            return None
+            
         except requests.exceptions.RequestException as e:
             logger.error(f"❌ Job claim request failed: {str(e)}")
             if hasattr(e, 'response') and e.response is not None:
@@ -127,7 +167,6 @@ class JobManager:
         try:
             url = f"{self.backend_url}/api/jobs/{self.current_job.id}"
             
-            # FIXED: Send credentials in headers
             headers = {
                 "Content-Type": "application/json",
                 "X-Colab-Secret": self.claim_secret,
@@ -144,7 +183,9 @@ class JobManager:
                 
             if error:
                 payload["error"] = error
-                
+            
+            logger.debug(f"Updating job state to: {state}")
+            
             response = self.session.patch(
                 url,
                 headers=headers,
@@ -152,7 +193,10 @@ class JobManager:
                 timeout=30
             )
             
-            response.raise_for_status()
+            if response.status_code != 200:
+                logger.error(f"Failed to update job state: {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                return False
             
             self.current_job.state = state
             
@@ -202,14 +246,20 @@ class JobManager:
         logger.info(f"Colab ID: {self.colab_id}")
         
         consecutive_failures = 0
+        consecutive_empty = 0
         
         while True:
             try:
+                logger.debug(f"Polling for jobs (attempt {consecutive_empty + 1})...")
+                
                 job = self.claim_job()
                 
                 if job:
+                    # Reset counters on success
                     consecutive_failures = 0
-                    logger.info(f"📋 Executing job: {job.id}")
+                    consecutive_empty = 0
+                    
+                    logger.info(f"📋 Executing job: {job.id} (type: {job.type})")
                     
                     # Execute callback with job
                     try:
@@ -226,14 +276,14 @@ class JobManager:
                     finally:
                         self.release_job()
                 else:
-                    consecutive_failures += 1
-                    logger.debug(f"No jobs available (attempt {consecutive_failures})")
+                    consecutive_empty += 1
                     
-                    # Alert on repeated failures
-                    if consecutive_failures == 10:
-                        logger.warning("⚠️ 10 consecutive empty polls - this is normal if no work to do")
-                    elif consecutive_failures % 100 == 0:
-                        logger.info(f"Still polling... ({consecutive_failures} attempts)")
+                    if consecutive_empty == 1:
+                        logger.debug("No jobs available")
+                    elif consecutive_empty == 10:
+                        logger.info("⏳ Still waiting for jobs (10 attempts)")
+                    elif consecutive_empty % 50 == 0:
+                        logger.info(f"⏳ Still polling... ({consecutive_empty} attempts)")
                     
                 time.sleep(interval)
                 
@@ -242,10 +292,16 @@ class JobManager:
                 break
                 
             except Exception as e:
-                logger.error(f"❌ Error in polling loop: {str(e)}")
+                consecutive_failures += 1
+                logger.error(f"❌ Error in polling loop (failure {consecutive_failures}): {str(e)}")
                 import traceback
                 logger.error(traceback.format_exc())
-                time.sleep(interval)
+                
+                if consecutive_failures >= 5:
+                    logger.error("❌ Too many consecutive failures, stopping")
+                    break
+                
+                time.sleep(interval * 2)  # Wait longer after error
 
 # Global job manager instance
 job_manager = JobManager()
